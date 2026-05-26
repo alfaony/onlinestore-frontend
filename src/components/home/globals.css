@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+/* ── Keyframes ─────────────────────────── */
+@keyframes fadeUp    { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn    { from{opacity:0} to{opacity:1} }
+@keyframes toastIn   { from{transform:translateY(80px);opacity:0} to{transform:translateY(0);opacity:1} }
+@keyframes toastOut  { from{transform:translateY(0);opacity:1} to{transform:translateY(80px);opacity:0} }
+@keyframes modalIn   { from{opacity:0;transform:scale(0.96) translateY(12px)} to{opacity:1;transform:scale(1) translateY(0)} }
+@keyframes cartPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+@keyframes shimmer   { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes spin      { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+/* ── Base Reset ─────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #FDF8F2;
+  color: #1A1A2E;
+  -webkit-font-smoothing: antialiased;
+}
+h1,h2,h3,h4 { font-family: 'Cormorant Garamond', serif; }
+a { text-decoration: none; color: inherit; }
+button { font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; }
+input, select, textarea { font-family: 'Plus Jakarta Sans', sans-serif; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background:#C41E3A; border-radius:2px; }
+::-webkit-scrollbar-track { background:#F5EDD9; }
+
+/* ── Layout ──────────────────────────────── */
+.c-app {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+@media (min-width:768px) { .c-app { padding: 0 2rem; } }
+
+/* ── Grids ───────────────────────────────── */
+.grid-products { display:grid; grid-template-columns:1fr; gap:1.25rem; }
+@media (min-width:640px)  { .grid-products { grid-template-columns:repeat(2,1fr); } }
+@media (min-width:1024px) { .grid-products { grid-template-columns:repeat(3,1fr); } }
+
+.grid-2 { display:grid; grid-template-columns:1fr; gap:1.25rem; }
+@media (min-width:768px) { .grid-2 { grid-template-columns:repeat(2,1fr); } }
+
+.grid-4 { display:grid; grid-template-columns:repeat(2,1fr); gap:1.5rem; }
+@media (min-width:1024px) { .grid-4 { grid-template-columns:repeat(4,1fr); } }
+
+.grid-footer { display:grid; grid-template-columns:1fr; gap:2rem; }
+@media (min-width:640px)  { .grid-footer { grid-template-columns:repeat(2,1fr); } }
+@media (min-width:1024px) { .grid-footer { grid-template-columns:2fr 1fr 1fr 1.5fr; } }
+
+/* ── Card ────────────────────────────────── */
+.c-card {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #EDD9B8;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.c-card:hover { transform:translateY(-4px); box-shadow:0 12px 32px rgba(196,30,58,0.12); }
+
+/* ── Buttons ─────────────────────────────── */
+.c-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; font-family:'Plus Jakarta Sans',sans-serif; font-weight:500;
+  font-size:13px; padding:11px 22px; border-radius:10px; border:none;
+  transition:all 0.18s ease; cursor:pointer; white-space:nowrap; text-decoration:none;
+}
+.c-btn:active { transform:scale(0.97); }
+.c-btn:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
+
+.c-btn-primary { background:#C41E3A; color:#fff; }
+.c-btn-primary:hover { background:#9B1530; transform:translateY(-1px); }
+.c-btn-navy    { background:#1B3A6B; color:#fff; }
+.c-btn-navy:hover { background:#2D5499; transform:translateY(-1px); }
+.c-btn-gold    { background:#E8A020; color:#fff; }
+.c-btn-gold:hover { background:#F5C55A; transform:translateY(-1px); }
+.c-btn-outline { background:transparent; color:#C41E3A; border:1.5px solid #C41E3A; }
+.c-btn-outline:hover { background:#C41E3A; color:#fff; }
+.c-btn-ghost   { background:transparent; color:#1B3A6B; border:1.5px solid #EDD9B8; }
+.c-btn-ghost:hover { background:#F5EDD9; }
+.c-btn-success { background:#10B981; color:#fff; }
+.c-btn-success:hover { background:#059669; }
+.c-btn-danger  { background:#FEE2E2; color:#DC2626; border:none; }
+
+.c-btn-sm   { font-size:12px; padding:8px 14px; border-radius:8px; }
+.c-btn-lg   { font-size:14px; padding:13px 28px; }
+.c-btn-full { width:100%; display:flex; }
+
+/* ── Tags ────────────────────────────────── */
+.c-tag {
+  display:inline-flex; align-items:center; gap:3px;
+  font-size:10px; font-weight:600; padding:3px 9px;
+  border-radius:20px; letter-spacing:0.5px; white-space:nowrap;
+}
+.c-tag-red   { background:#FEE8EC; color:#C41E3A; }
+.c-tag-gold  { background:#FEF3DC; color:#92600A; }
+.c-tag-navy  { background:#E8EEF8; color:#1B3A6B; }
+.c-tag-green { background:#E8F5E9; color:#166534; }
+.c-tag-gray  { background:#F3F0EB; color:#6B7280; }
+
+/* ── Input ───────────────────────────────── */
+.c-input {
+  width:100%; padding:11px 14px; border-radius:10px;
+  border:1.5px solid #EDD9B8; font-size:13px;
+  background:#fff; color:#1A1A2E; outline:none;
+  transition:border-color 0.2s; font-family:'Plus Jakarta Sans',sans-serif;
+}
+.c-input:focus { border-color:#C41E3A; box-shadow:0 0 0 3px rgba(196,30,58,0.08); }
+
+/* ── Stars ───────────────────────────────── */
+.c-stars { color:#E8A020; font-size:11px; letter-spacing:1px; }
+
+/* ── Shimmer ─────────────────────────────── */
+.c-shimmer {
+  background:linear-gradient(90deg,#F5EDD9 25%,#EDD9B8 50%,#F5EDD9 75%);
+  background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:8px;
+}
+
+/* ── Animations ──────────────────────────── */
+.animate-fade-up   { animation:fadeUp 0.55s cubic-bezier(.22,.68,0,1.2) forwards; }
+.animate-fade-up-2 { animation:fadeUp 0.55s 0.1s cubic-bezier(.22,.68,0,1.2) both; }
+.animate-fade-up-3 { animation:fadeUp 0.55s 0.2s cubic-bezier(.22,.68,0,1.2) both; }
+.animate-fade-in   { animation:fadeIn 0.2s ease; }
+.animate-modal-in  { animation:modalIn 0.3s cubic-bezier(.22,.68,0,1.2); }
+.animate-toast-in  { animation:toastIn 0.3s ease forwards; }
+.animate-toast-out { animation:toastOut 0.3s ease forwards; }
+.animate-cart-pulse { animation:cartPulse 2s infinite; }
+.animate-spin      { animation:spin 1s linear infinite; }
+
+/* ── Utilities ───────────────────────────── */
+.font-display { font-family:'Cormorant Garamond',serif !important; }
+.line-clamp-1 { display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+.line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.line-clamp-3 { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }

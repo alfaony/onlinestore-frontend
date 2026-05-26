@@ -1,46 +1,39 @@
-// frontend/src/app/(customer)/artikel/[slug]/page.tsx
-import { Metadata } from 'next'
+// src/app/(customer)/artikel/[slug]/page.tsx
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
-import api from '@/lib/api'
-import { formatDate } from '@/lib/utils'
+import Link from 'next/link'
 import { Calendar, User } from 'lucide-react'
+import api from '@/lib/api'
+import { formatDate, storageUrl } from '@/lib/utils'
+import Tag from '@/components/ui/Tag'
 
 interface Props { params: Promise<{ slug: string }> }
 
-async function getArticle(slug: string) {
-    try {
-        return await api.get(`/articles/${slug}`).then(r => r.data)
-    } catch { return null }
+async function getData(slug: string) {
+    try { return (await api.get(`/articles/${slug}`)).data } catch { return null }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { slug } = await params
-    const article = await getArticle(slug)
-    if (!article) return { title: 'Artikel tidak ditemukan' }
-
+    const data = await getData(slug)
+    if (!data) return { title: 'Artikel tidak ditemukan' }
     return {
-        title: article.title,
-        description: article.meta_description,
-        openGraph: {
-            title: article.title,
-            description: article.meta_description,
-            images: article.image ? [{ url: article.image }] : [],
-            type: 'article',
-        },
+        title: data.article.title,
+        description: data.article.meta_description,
+        openGraph: { images: data.article.image ? [{ url: data.article.image }] : [] },
     }
 }
 
 export default async function ArtikelDetailPage({ params }: Props) {
     const { slug } = await params
-    const article = await getArticle(slug)
-    if (!article) notFound()
+    const data = await getData(slug)
+    if (!data) notFound()
 
+    const { article, related } = data
     const jsonLd = {
-        '@context': 'https://schema.org',
-        '@type': 'Article',
-        headline: article.title,
-        image: article.image,
+        '@context': 'https://schema.org', '@type': 'Article',
+        headline: article.title, image: article.image,
         datePublished: article.published_at,
         author: { '@type': 'Person', name: article.author?.name ?? 'Seraso Palembang' },
         publisher: { '@type': 'Organization', name: 'Seraso Palembang' },
@@ -48,50 +41,79 @@ export default async function ArtikelDetailPage({ params }: Props) {
 
     return (
         <>
-            <script type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-            <article className="max-w-3xl mx-auto px-4 py-12">
-                {/* Header */}
-                <div className="mb-8">
+            <div className={`container-app py-11 pb-16 grid gap-10
+                ${related?.length ? 'grid-cols-1 lg:grid-cols-[2fr_1fr]' : 'grid-cols-1 max-w-2xl'}`}>
+
+                {/* ── Article body ── */}
+                <article>
                     {article.category && (
-                        <span className="text-xs font-medium text-[--color-accent] uppercase tracking-widest">
-                            {article.category.name}
-                        </span>
+                        <div className="mb-2">
+                            <Tag color="gold">{article.category.name}</Tag>
+                        </div>
                     )}
-                    <h1 className="font-playfair text-4xl font-bold text-gray-900 mt-2 mb-4 leading-tight">
+
+                    <h1 className="font-display text-3xl md:text-[42px] font-bold text-dark mt-2.5 mb-4 leading-tight">
                         {article.title}
                     </h1>
-                    <div className="flex items-center gap-4 text-sm text-gray-400">
-                        <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {formatDate(article.published_at)}
+
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-6">
+                        <span className="flex items-center gap-1.5">
+                            <Calendar size={14} /> {formatDate(article.published_at)}
                         </span>
                         {article.author && (
-                            <span className="flex items-center gap-1">
-                                <User className="w-4 h-4" />
-                                {article.author.name}
+                            <span className="flex items-center gap-1.5">
+                                <User size={14} /> {article.author.name}
                             </span>
                         )}
                     </div>
-                </div>
 
-                {/* Cover Image */}
-                {article.image && (
-                    <div className="relative h-72 w-full rounded-2xl overflow-hidden mb-8">
-                        <Image src={article.image} alt={article.title} fill className="object-cover" />
-                    </div>
+                    {article.image && (
+                        <div className="relative h-[240px] md:h-[320px] rounded-2xl overflow-hidden mb-7">
+                            <Image
+                                src={storageUrl(article.image)}
+                                alt={article.title}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                            />
+                        </div>
+                    )}
+
+                    <div
+                        className="prose text-gray-500 leading-[1.9] text-[15px]"
+                        dangerouslySetInnerHTML={{ __html: article.content }}
+                    />
+                </article>
+
+                {/* ── Related sidebar (desktop only) ── */}
+                {related?.length > 0 && (
+                    <aside className="hidden lg:block">
+                        <h3 className="font-display text-2xl font-bold text-navy mb-5">
+                            Artikel Terkait
+                        </h3>
+                        <div className="flex flex-col gap-4">
+                            {related.map((r: any) => (
+                                <Link key={r.id} href={`/artikel/${r.slug}`} className="flex gap-3">
+                                    <div className="w-[72px] h-[72px] rounded-xl bg-cream-dark flex-shrink-0 relative overflow-hidden">
+                                        {r.image
+                                            ? <Image src={storageUrl(r.image)} alt={r.title} fill className="object-cover" unoptimized />
+                                            : <div className="h-full flex items-center justify-center">📰</div>
+                                        }
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-navy leading-snug mb-1 line-clamp-2">
+                                            {r.title}
+                                        </p>
+                                        <p className="text-[11px] text-gray-400">{formatDate(r.published_at)}</p>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </aside>
                 )}
-
-                {/* Content */}
-                <div
-                    className="prose prose-lg max-w-none
-            prose-headings:font-playfair prose-headings:text-gray-800
-            prose-p:text-gray-600 prose-p:leading-relaxed
-            prose-a:text-[--color-primary] prose-img:rounded-xl"
-                    dangerouslySetInnerHTML={{ __html: article.content }}
-                />
-            </article>
+            </div>
         </>
     )
 }

@@ -1,83 +1,72 @@
-// frontend/src/components/checkout/VoucherInput.tsx
 'use client'
 import { useState } from 'react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Tag, X } from 'lucide-react'
-import { formatRupiah } from '@/lib/utils'
+import { toast } from 'sonner'
 import api from '@/lib/api'
+import { formatRupiah } from '@/lib/utils'
+
+const S = { red:'#C41E3A', creamDp:'#EDD9B8', gray:'#6B7280', green:'#10B981' }
 
 interface Props {
-    subtotal: number
-    memberStatus: 'new' | 'old' | null
-    onApply: (voucher: any) => void
+  subtotal: number
+  memberStatus: string | null
+  onApply: (v: any) => void
 }
 
 export default function VoucherInput({ subtotal, memberStatus, onApply }: Props) {
-    const [code, setCode] = useState('')
-    const [voucher, setVoucher] = useState<any>(null)
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState('')
+  const [code, setCode]       = useState('')
+  const [voucher, setVoucher] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
 
-    async function checkVoucher() {
-        if (!code.trim()) return
-        setLoading(true); setError('')
-        try {
-            const { data } = await api.post('/vouchers/check', {
-                code, subtotal, member_status: memberStatus
-            })
-            setVoucher(data)
-            onApply(data)
-        } catch (e: any) {
-            setError(e?.response?.data?.message ?? 'Voucher tidak valid.')
-        } finally { setLoading(false) }
-    }
+  async function check() {
+    if (!code.trim()) return
+    setLoading(true)
+    try {
+      const { data } = await api.post('/vouchers/check', { code, subtotal, member_status: memberStatus })
+      setVoucher(data); onApply(data)
+      toast.success(`Voucher "${data.name}" berhasil diterapkan! 🎉`)
+    } catch (e:any) {
+      toast.error(e?.response?.data?.message ?? 'Voucher tidak valid.')
+    } finally { setLoading(false) }
+  }
 
-    function removeVoucher() {
-        setVoucher(null); setCode(''); onApply(null)
-    }
+  function remove() { setVoucher(null); setCode(''); onApply(null) }
 
-    return (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Tag className="w-4 h-4 text-[--color-accent]" />
-                Voucher
-            </h2>
+  return (
+    <div style={{ marginBottom:20 }}>
+      <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:S.gray, fontWeight:500, marginBottom:8 }}>
+        🏷️ Kode Voucher
+      </label>
 
-            {voucher ? (
-                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-                    <div>
-                        <p className="font-medium text-sm text-green-800">{voucher.name}</p>
-                        <p className="text-xs text-green-600">
-                            Hemat {formatRupiah(voucher.discount_amount)}
-                        </p>
-                    </div>
-                    <button onClick={removeVoucher}
-                        className="text-green-400 hover:text-green-600">
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-            ) : (
-                <div className="space-y-2">
-                    <div className="flex gap-2">
-                        <Input
-                            placeholder="Masukkan kode voucher"
-                            value={code}
-                            onChange={e => setCode(e.target.value.toUpperCase())}
-                            className="font-mono"
-                            onKeyDown={e => e.key === 'Enter' && checkVoucher()}
-                        />
-                        <Button
-                            variant="outline"
-                            className="border-[--color-primary] text-[--color-primary] shrink-0"
-                            onClick={checkVoucher}
-                            disabled={loading || !code}>
-                            {loading ? '...' : 'Pakai'}
-                        </Button>
-                    </div>
-                    {error && <p className="text-xs text-red-500">{error}</p>}
-                </div>
-            )}
+      {voucher ? (
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'rgba(16,185,129,0.06)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:10, padding:'12px 14px' }}>
+          <div>
+            <p style={{ fontSize:13, fontWeight:600, color:'#166534' }}>{voucher.name}</p>
+            <p style={{ fontSize:12, color:S.green }}>Hemat {formatRupiah(voucher.discount_amount)}</p>
+          </div>
+          <button onClick={remove} style={{ background:'none', border:'none', color:'#E5E2DC', fontSize:20, cursor:'pointer', lineHeight:1 }}>×</button>
         </div>
-    )
+      ) : (
+        <div>
+          <div style={{ display:'flex', gap:8 }}>
+            <input
+              value={code}
+              onChange={e => setCode(e.target.value.toUpperCase())}
+              onKeyDown={e => e.key==='Enter' && check()}
+              placeholder="Masukkan kode voucher..."
+              className="c-input"
+              style={{ flex:1, textTransform:'uppercase', fontWeight:600, letterSpacing:'1px' }}
+            />
+            <button onClick={check} disabled={loading || !code} className="c-btn c-btn-primary c-btn-sm">
+              {loading ? '...' : 'Pakai'}
+            </button>
+          </div>
+          <p style={{ fontSize:10, color:S.gray, marginTop:6 }}>
+            Coba: <code style={{ background:'#F3F0EB', padding:'1px 5px', borderRadius:3 }}>NEWMEMBER</code>{' '}
+            <code style={{ background:'#F3F0EB', padding:'1px 5px', borderRadius:3 }}>SERASO10</code>{' '}
+            <code style={{ background:'#F3F0EB', padding:'1px 5px', borderRadius:3 }}>FREEONGKIR</code>
+          </p>
+        </div>
+      )}
+    </div>
+  )
 }

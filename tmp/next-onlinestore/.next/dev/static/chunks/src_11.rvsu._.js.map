@@ -1,0 +1,202 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {
+      "offset": {
+        "line": 4,
+        "column": 0
+      },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///Applications/MAMP/htdocs/Learning/onlinestore/frontend/src/stores/cart.store.ts"
+        ],
+        "sourcesContent": [
+          "// src/stores/cart.store.ts\nimport { create } from 'zustand'\nimport { persist } from 'zustand/middleware'\nimport type { CartItem, Product } from '@/types'\n\ninterface CartStore {\n  items: CartItem[]\n  branch_id: string | null\n  addItem: (product: Product, quantity: number, branch_id: string) => void\n  removeItem: (productId: string) => void\n  updateQuantity: (productId: string, quantity: number) => void\n  clearCart: () => void\n  total: () => number\n  itemCount: () => number\n}\n\nexport const useCartStore = create<CartStore>()(\n  persist(\n    (set, get) => ({\n      items: [],\n      branch_id: null,\n\n      addItem: (product, quantity, branch_id) => {\n        const existing = get().items.find(i => i.product.id === product.id)\n        if (existing) {\n          set({\n            items: get().items.map(i =>\n              i.product.id === product.id\n                ? { ...i, quantity: i.quantity + quantity }\n                : i\n            )\n          })\n        } else {\n          set({ items: [...get().items, { product, quantity, branch_id }], branch_id })\n        }\n      },\n\n      removeItem: (productId) =>\n        set(s => ({ items: s.items.filter(i => i.product.id !== productId) })),\n\n      updateQuantity: (productId, quantity) =>\n        set(s => ({\n          items: quantity <= 0\n            ? s.items.filter(i => i.product.id !== productId)\n            : s.items.map(i => i.product.id === productId ? { ...i, quantity } : i)\n        })),\n\n      clearCart: () => set({ items: [], branch_id: null }),\n      total: () => get().items.reduce((acc, i) => acc + i.product.price * i.quantity, 0),\n      itemCount: () => get().items.reduce((acc, i) => acc + i.quantity, 0),\n    }),\n    { name: 'seraso-cart' }\n  )\n)"
+        ],
+        "names": [
+          "useCartStore",
+          "set",
+          "get",
+          "items",
+          "branch_id",
+          "addItem",
+          "product",
+          "quantity",
+          "existing",
+          "find",
+          "i",
+          "id",
+          "map",
+          "removeItem",
+          "productId",
+          "s",
+          "filter",
+          "updateQuantity",
+          "clearCart",
+          "total",
+          "reduce",
+          "acc",
+          "price",
+          "itemCount",
+          "name"
+        ],
+        "mappings": ";;;;AAAA,2BAA2B;AAC3B;AACA;;;AAcO,MAAMA,eAAe,IAAA,qJAAM,IAChC,IAAA,2JAAO,EACL,CAACC,KAAKC,MAAQ,CAAC;QACbC,OAAO,EAAE;QACTC,WAAW;QAEXC,SAAS,CAACC,SAASC,UAAUH;YAC3B,MAAMI,WAAWN,MAAMC,KAAK,CAACM,IAAI,CAACC,CAAAA,IAAKA,EAAEJ,OAAO,CAACK,EAAE,KAAKL,QAAQK,EAAE;YAClE,IAAIH,UAAU;gBACZP,IAAI;oBACFE,OAAOD,MAAMC,KAAK,CAACS,GAAG,CAACF,CAAAA,IACrBA,EAAEJ,OAAO,CAACK,EAAE,KAAKL,QAAQK,EAAE,GACvB;4BAAE,GAAGD,CAAC;4BAAEH,UAAUG,EAAEH,QAAQ,GAAGA;wBAAS,IACxCG;gBAER;YACF,OAAO;gBACLT,IAAI;oBAAEE,OAAO;2BAAID,MAAMC,KAAK;wBAAE;4BAAEG;4BAASC;4BAAUH;wBAAU;qBAAE;oBAAEA;gBAAU;YAC7E;QACF;QAEAS,YAAY,CAACC,YACXb,IAAIc,CAAAA,IAAK,CAAC;oBAAEZ,OAAOY,EAAEZ,KAAK,CAACa,MAAM,CAACN,CAAAA,IAAKA,EAAEJ,OAAO,CAACK,EAAE,KAAKG;gBAAW,CAAC;QAEtEG,gBAAgB,CAACH,WAAWP,WAC1BN,IAAIc,CAAAA,IAAK,CAAC;oBACRZ,OAAOI,YAAY,IACfQ,EAAEZ,KAAK,CAACa,MAAM,CAACN,CAAAA,IAAKA,EAAEJ,OAAO,CAACK,EAAE,KAAKG,aACrCC,EAAEZ,KAAK,CAACS,GAAG,CAACF,CAAAA,IAAKA,EAAEJ,OAAO,CAACK,EAAE,KAAKG,YAAY;4BAAE,GAAGJ,CAAC;4BAAEH;wBAAS,IAAIG;gBACzE,CAAC;QAEHQ,WAAW,IAAMjB,IAAI;gBAAEE,OAAO,EAAE;gBAAEC,WAAW;YAAK;QAClDe,OAAO,IAAMjB,MAAMC,KAAK,CAACiB,MAAM,CAAC,CAACC,KAAKX,IAAMW,MAAMX,EAAEJ,OAAO,CAACgB,KAAK,GAAGZ,EAAEH,QAAQ,EAAE;QAChFgB,WAAW,IAAMrB,MAAMC,KAAK,CAACiB,MAAM,CAAC,CAACC,KAAKX,IAAMW,MAAMX,EAAEH,QAAQ,EAAE;IACpE,CAAC,GACD;IAAEiB,MAAM;AAAc"
+      }
+    },
+    {
+      "offset": {
+        "line": 64,
+        "column": 0
+      },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///Applications/MAMP/htdocs/Learning/onlinestore/frontend/src/lib/utils.ts"
+        ],
+        "sourcesContent": [
+          "import { clsx, type ClassValue } from \"clsx\"\nimport { twMerge } from \"tailwind-merge\"\n\nexport function cn(...inputs: ClassValue[]) {\n  return twMerge(clsx(inputs))\n}\n\nexport function formatRupiah(amount: number): string {\n  return new Intl.NumberFormat('id-ID', {\n    style: 'currency',\n    currency: 'IDR',\n    minimumFractionDigits: 0,\n  }).format(amount)\n}\n\nexport function formatDate(dateString: string): string {\n  return new Date(dateString).toLocaleDateString('id-ID', {\n    day: 'numeric',\n    month: 'long',\n    year: 'numeric',\n  })\n}\n"
+        ],
+        "names": [
+          "cn",
+          "inputs",
+          "formatRupiah",
+          "amount",
+          "Intl",
+          "NumberFormat",
+          "style",
+          "currency",
+          "minimumFractionDigits",
+          "format",
+          "formatDate",
+          "dateString",
+          "Date",
+          "toLocaleDateString",
+          "day",
+          "month",
+          "year"
+        ],
+        "mappings": ";;;;;;;;AAAA;AACA;;;AAEO,SAASA,GAAG,GAAGC,MAAoB;IACxC,OAAO,IAAA,yKAAO,EAAC,IAAA,gJAAI,EAACA;AACtB;AAEO,SAASC,aAAaC,MAAc;IACzC,OAAO,IAAIC,KAAKC,YAAY,CAAC,SAAS;QACpCC,OAAO;QACPC,UAAU;QACVC,uBAAuB;IACzB,GAAGC,MAAM,CAACN;AACZ;AAEO,SAASO,WAAWC,UAAkB;IAC3C,OAAO,IAAIC,KAAKD,YAAYE,kBAAkB,CAAC,SAAS;QACtDC,KAAK;QACLC,OAAO;QACPC,MAAM;IACR;AACF"
+      }
+    },
+    {
+      "offset": {
+        "line": 100,
+        "column": 0
+      },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///Applications/MAMP/htdocs/Learning/onlinestore/frontend/src/components/ui/button.tsx"
+        ],
+        "sourcesContent": [
+          "import * as React from \"react\"\nimport { cva, type VariantProps } from \"class-variance-authority\"\nimport { Slot } from \"radix-ui\"\n\nimport { cn } from \"@/lib/utils\"\n\nconst buttonVariants = cva(\n  \"group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4\",\n  {\n    variants: {\n      variant: {\n        default: \"bg-primary text-primary-foreground [a]:hover:bg-primary/80\",\n        outline:\n          \"border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50\",\n        secondary:\n          \"bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground\",\n        ghost:\n          \"hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50\",\n        destructive:\n          \"bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40\",\n        link: \"text-primary underline-offset-4 hover:underline\",\n      },\n      size: {\n        default:\n          \"h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2\",\n        xs: \"h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3\",\n        sm: \"h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5\",\n        lg: \"h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2\",\n        icon: \"size-8\",\n        \"icon-xs\":\n          \"size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3\",\n        \"icon-sm\":\n          \"size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg\",\n        \"icon-lg\": \"size-9\",\n      },\n    },\n    defaultVariants: {\n      variant: \"default\",\n      size: \"default\",\n    },\n  }\n)\n\nfunction Button({\n  className,\n  variant = \"default\",\n  size = \"default\",\n  asChild = false,\n  ...props\n}: React.ComponentProps<\"button\"> &\n  VariantProps<typeof buttonVariants> & {\n    asChild?: boolean\n  }) {\n  const Comp = asChild ? Slot.Root : \"button\"\n\n  return (\n    <Comp\n      data-slot=\"button\"\n      data-variant={variant}\n      data-size={size}\n      className={cn(buttonVariants({ variant, size, className }))}\n      {...props}\n    />\n  )\n}\n\nexport { Button, buttonVariants }\n"
+        ],
+        "names": [
+          "buttonVariants",
+          "variants",
+          "variant",
+          "default",
+          "outline",
+          "secondary",
+          "ghost",
+          "destructive",
+          "link",
+          "size",
+          "xs",
+          "sm",
+          "lg",
+          "icon",
+          "defaultVariants",
+          "Button",
+          "className",
+          "asChild",
+          "props",
+          "Comp",
+          "Root"
+        ],
+        "mappings": ";;;;;;;AACA;AACA;AAEA;;;;;AAEA,MAAMA,iBAAiB,IAAA,0KAAG,EACxB,8lBACA;IACEC,UAAU;QACRC,SAAS;YACPC,SAAS;YACTC,SACE;YACFC,WACE;YACFC,OACE;YACFC,aACE;YACFC,MAAM;QACR;QACAC,MAAM;YACJN,SACE;YACFO,IAAI;YACJC,IAAI;YACJC,IAAI;YACJC,MAAM;YACN,WACE;YACF,WACE;YACF,WAAW;QACb;IACF;IACAC,iBAAiB;QACfZ,SAAS;QACTO,MAAM;IACR;AACF;AAGF,SAASM,OAAO,EACdC,SAAS,EACTd,UAAU,SAAS,EACnBO,OAAO,SAAS,EAChBQ,UAAU,KAAK,EACf,GAAGC,OAIF;IACD,MAAMC,OAAOF,UAAU,2MAAI,CAACG,IAAI,GAAG;IAEnC,qBACE,6LAACD;QACC,aAAU;QACV,gBAAcjB;QACd,aAAWO;QACXO,WAAW,IAAA,4HAAE,EAAChB,eAAe;YAAEE;YAASO;YAAMO;QAAU;QACvD,GAAGE,KAAK;;;;;;AAGf;KArBSH"
+      }
+    },
+    {
+      "offset": {
+        "line": 169,
+        "column": 0
+      },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///Applications/MAMP/htdocs/Learning/onlinestore/frontend/src/components/cart/CartDrawer.tsx"
+        ],
+        "sourcesContent": [
+          "// frontend/src/components/cart/CartDrawer.tsx\n'use client'\nimport Link from 'next/link'\nimport Image from 'next/image'\nimport { X, Minus, Plus, ShoppingBag } from 'lucide-react'\nimport { useCartStore } from '@/stores/cart.store'\nimport { formatRupiah } from '@/lib/utils'\nimport { Button } from '@/components/ui/button'\n\ninterface Props { open: boolean; onClose: () => void }\n\nexport default function CartDrawer({ open, onClose }: Props) {\n    const { items, updateQuantity, removeItem, total } = useCartStore()\n\n    return (\n        <>\n            {/* Backdrop */}\n            {open && <div className=\"fixed inset-0 bg-black/40 z-50\" onClick={onClose} />}\n\n            {/* Drawer */}\n            <div className={`fixed top-0 right-0 h-full w-full max-w-sm bg-white z-50 shadow-2xl\n        transform transition-transform duration-300 flex flex-col\n        ${open ? 'translate-x-0' : 'translate-x-full'}`}>\n\n                {/* Header */}\n                <div className=\"flex items-center justify-between p-4 border-b border-gray-100\">\n                    <h2 className=\"font-playfair font-bold text-lg text-[--color-primary]\">\n                        Keranjang\n                    </h2>\n                    <Button variant=\"ghost\" size=\"icon\" onClick={onClose}>\n                        <X className=\"w-5 h-5\" />\n                    </Button>\n                </div>\n\n                {/* Items */}\n                <div className=\"flex-1 overflow-y-auto p-4 space-y-4\">\n                    {items.length === 0 ? (\n                        <div className=\"flex flex-col items-center justify-center h-full gap-3 text-gray-400\">\n                            <ShoppingBag className=\"w-16 h-16 opacity-30\" />\n                            <p className=\"text-sm\">Keranjang masih kosong</p>\n                            <Button variant=\"outline\" size=\"sm\" onClick={onClose}\n                                className=\"border-[--color-primary] text-[--color-primary]\">\n                                Lihat Menu\n                            </Button>\n                        </div>\n                    ) : (\n                        items.map(item => (\n                            <div key={item.product.id} className=\"flex gap-3\">\n                                <div className=\"relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-amber-50\">\n                                    {item.product.primary_image ? (\n                                        <Image src={item.product.primary_image.image_path}\n                                            alt={item.product.name} fill className=\"object-cover\" />\n                                    ) : (\n                                        <div className=\"w-full h-full flex items-center justify-center text-2xl\">🍜</div>\n                                    )}\n                                </div>\n                                <div className=\"flex-1 min-w-0\">\n                                    <p className=\"font-medium text-sm text-gray-800 truncate\">{item.product.name}</p>\n                                    <p className=\"text-sm text-[--color-primary] font-semibold\">\n                                        {formatRupiah(item.product.price)}\n                                    </p>\n                                    <div className=\"flex items-center gap-2 mt-1\">\n                                        <Button variant=\"outline\" size=\"icon\" className=\"w-6 h-6\"\n                                            onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>\n                                            <Minus className=\"w-3 h-3\" />\n                                        </Button>\n                                        <span className=\"text-sm font-medium w-6 text-center\">{item.quantity}</span>\n                                        <Button variant=\"outline\" size=\"icon\" className=\"w-6 h-6\"\n                                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>\n                                            <Plus className=\"w-3 h-3\" />\n                                        </Button>\n                                    </div>\n                                </div>\n                                <button onClick={() => removeItem(item.product.id)}\n                                    className=\"text-gray-300 hover:text-red-400 transition-colors self-start\">\n                                    <X className=\"w-4 h-4\" />\n                                </button>\n                            </div>\n                        ))\n                    )}\n                </div>\n\n                {/* Footer */}\n                {items.length > 0 && (\n                    <div className=\"border-t border-gray-100 p-4 space-y-3\">\n                        <div className=\"flex justify-between font-bold text-gray-800\">\n                            <span>Total</span>\n                            <span className=\"text-[--color-primary]\">{formatRupiah(total())}</span>\n                        </div>\n                        <Link href=\"/checkout\" onClick={onClose}>\n                            <Button className=\"w-full bg-[--color-primary] hover:bg-[--color-primary-dark] text-white rounded-xl h-12\">\n                                Lanjut Checkout\n                            </Button>\n                        </Link>\n                    </div>\n                )}\n            </div>\n        </>\n    )\n}"
+        ],
+        "names": [
+          "CartDrawer",
+          "open",
+          "onClose",
+          "items",
+          "updateQuantity",
+          "removeItem",
+          "total",
+          "className",
+          "onClick",
+          "variant",
+          "size",
+          "length",
+          "map",
+          "item",
+          "product",
+          "primary_image",
+          "src",
+          "image_path",
+          "alt",
+          "name",
+          "fill",
+          "price",
+          "id",
+          "quantity",
+          "href"
+        ],
+        "mappings": "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"
+      }
+    },
+    {
+      "offset": {
+        "line": 482,
+        "column": 0
+      },
+      "map": {
+        "version": 3,
+        "sources": [
+          "file:///Applications/MAMP/htdocs/Learning/onlinestore/frontend/src/components/layout/Navbar.tsx"
+        ],
+        "sourcesContent": [
+          "// frontend/src/components/layout/Navbar.tsx\n'use client'\nimport Link from 'next/link'\nimport { ShoppingCart, Menu, X } from 'lucide-react'\nimport { useState } from 'react'\nimport { useCartStore } from '@/stores/cart.store'\nimport CartDrawer from '@/components/cart/CartDrawer'\nimport { Button } from '@/components/ui/button'\n\nexport default function Navbar() {\n    const [menuOpen, setMenuOpen] = useState(false)\n    const [cartOpen, setCartOpen] = useState(false)\n    const itemCount = useCartStore(s => s.itemCount())\n\n    const links = [\n        { href: '/', label: 'Beranda' },\n        { href: '/menu', label: 'Menu' },\n        { href: '/artikel', label: 'Artikel' },\n    ]\n\n    return (\n        <>\n            <nav className=\"sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-amber-100 shadow-sm\">\n                <div className=\"max-w-7xl mx-auto px-4 h-16 flex items-center justify-between\">\n\n                    {/* Logo */}\n                    <Link href=\"/\" className=\"flex items-center gap-2\">\n                        <span className=\"font-playfair text-2xl font-bold text-[--color-primary]\">\n                            Seraso\n                        </span>\n                        <span className=\"text-xs text-[--color-accent] font-medium tracking-widest uppercase\">\n                            Palembang\n                        </span>\n                    </Link>\n\n                    {/* Desktop Links */}\n                    <div className=\"hidden md:flex items-center gap-8\">\n                        {links.map(l => (\n                            <Link key={l.href} href={l.href}\n                                className=\"text-sm font-medium text-gray-600 hover:text-[--color-primary] transition-colors\">\n                                {l.label}\n                            </Link>\n                        ))}\n                    </div>\n\n                    {/* Actions */}\n                    <div className=\"flex items-center gap-3\">\n                        <Button variant=\"ghost\" size=\"icon\" className=\"relative\"\n                            onClick={() => setCartOpen(true)}>\n                            <ShoppingCart className=\"w-5 h-5\" />\n                            {itemCount > 0 && (\n                                <span className=\"absolute -top-1 -right-1 bg-[--color-primary] text-white\n                  text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold\">\n                                    {itemCount}\n                                </span>\n                            )}\n                        </Button>\n                        <Button variant=\"ghost\" size=\"icon\" className=\"md:hidden\"\n                            onClick={() => setMenuOpen(!menuOpen)}>\n                            {menuOpen ? <X className=\"w-5 h-5\" /> : <Menu className=\"w-5 h-5\" />}\n                        </Button>\n                    </div>\n                </div>\n\n                {/* Mobile Menu */}\n                {menuOpen && (\n                    <div className=\"md:hidden border-t border-amber-50 bg-white px-4 py-3 space-y-2\">\n                        {links.map(l => (\n                            <Link key={l.href} href={l.href}\n                                className=\"block py-2 text-sm font-medium text-gray-600 hover:text-[--color-primary]\"\n                                onClick={() => setMenuOpen(false)}>\n                                {l.label}\n                            </Link>\n                        ))}\n                    </div>\n                )}\n            </nav>\n\n            <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />\n        </>\n    )\n}"
+        ],
+        "names": [
+          "Navbar",
+          "menuOpen",
+          "setMenuOpen",
+          "cartOpen",
+          "setCartOpen",
+          "itemCount",
+          "s",
+          "links",
+          "href",
+          "label",
+          "className",
+          "map",
+          "l",
+          "variant",
+          "size",
+          "onClick",
+          "open",
+          "onClose"
+        ],
+        "mappings": ";;;;;AAEA;AACA;AAAA;AAAA;AACA;AACA;AACA;AACA;;;AAPA,4CAA4C;AAC5C;;;;;;;AAQe,SAASA;;IACpB,MAAM,CAACC,UAAUC,YAAY,GAAG,IAAA,yKAAQ,EAAC;IACzC,MAAM,CAACC,UAAUC,YAAY,GAAG,IAAA,yKAAQ,EAAC;IACzC,MAAMC,YAAY,IAAA,iJAAY;0CAACC,CAAAA,IAAKA,EAAED,SAAS;;IAE/C,MAAME,QAAQ;QACV;YAAEC,MAAM;YAAKC,OAAO;QAAU;QAC9B;YAAED,MAAM;YAASC,OAAO;QAAO;QAC/B;YAAED,MAAM;YAAYC,OAAO;QAAU;KACxC;IAED,qBACI;;0BACI,6LAAC;gBAAIC,WAAU;;kCACX,6LAAC;wBAAIA,WAAU;;0CAGX,6LAAC,0KAAI;gCAACF,MAAK;gCAAIE,WAAU;;kDACrB,6LAAC;wCAAKA,WAAU;kDAA0D;;;;;;kDAG1E,6LAAC;wCAAKA,WAAU;kDAAsE;;;;;;;;;;;;0CAM1F,6LAAC;gCAAIA,WAAU;0CACVH,MAAMI,GAAG,CAACC,CAAAA,kBACP,6LAAC,0KAAI;wCAAcJ,MAAMI,EAAEJ,IAAI;wCAC3BE,WAAU;kDACTE,EAAEH,KAAK;uCAFDG,EAAEJ,IAAI;;;;;;;;;;0CAQzB,6LAAC;gCAAIE,WAAU;;kDACX,6LAAC,+IAAM;wCAACG,SAAQ;wCAAQC,MAAK;wCAAOJ,WAAU;wCAC1CK,SAAS,IAAMX,YAAY;;0DAC3B,6LAAC,0OAAY;gDAACM,WAAU;;;;;;4CACvBL,YAAY,mBACT,6LAAC;gDAAKK,WAAU;0DAEXL;;;;;;;;;;;;kDAIb,6LAAC,+IAAM;wCAACQ,SAAQ;wCAAQC,MAAK;wCAAOJ,WAAU;wCAC1CK,SAAS,IAAMb,YAAY,CAACD;kDAC3BA,yBAAW,6LAAC,qMAAC;4CAACS,WAAU;;;;;iEAAe,6LAAC,8MAAI;4CAACA,WAAU;;;;;;;;;;;;;;;;;;;;;;;oBAMnET,0BACG,6LAAC;wBAAIS,WAAU;kCACVH,MAAMI,GAAG,CAACC,CAAAA,kBACP,6LAAC,0KAAI;gCAAcJ,MAAMI,EAAEJ,IAAI;gCAC3BE,WAAU;gCACVK,SAAS,IAAMb,YAAY;0CAC1BU,EAAEH,KAAK;+BAHDG,EAAEJ,IAAI;;;;;;;;;;;;;;;;0BAUjC,6LAAC,sJAAU;gBAACQ,MAAMb;gBAAUc,SAAS,IAAMb,YAAY;;;;;;;;AAGnE;GAxEwBJ;;QAGF,iJAAY;;;KAHVA"
+      }
+    }
+  ]
+}

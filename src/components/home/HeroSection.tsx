@@ -1,60 +1,73 @@
-// frontend/src/components/home/HeroSection.tsx
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { ArrowRight } from 'lucide-react'
 
 export default function HeroSection() {
-    return (
-        <section className="relative min-h-[90vh] flex items-center overflow-hidden">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 bg-[--color-cream]">
-                <div className="absolute inset-0 opacity-5"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%238B1A1A' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
+  return (
+    <div>
+      <section className='bg-sr-navy min-h-[88vh] md:min-h-[82vh] flex items-center relative overflow-hidden'>
+        {/* Decorative circles */}
+        <div className='absolute -right-5 -top-5 w-80 h-80 bg-sr-red/[0.06] rounded-full pointer-events-none' />
+        <div className='absolute right-20 -bottom-10 w-56 h-56 bg-sr-gold/[0.08] rounded-full pointer-events-none' />
+        <div className='absolute right-10 top-1/2 -translate-y-1/2 text-[140px] opacity-[0.07] select-none pointer-events-none hidden lg:block'>🌉</div>
+
+        {/* Content */}
+        <div className='c-app relative z-10 py-16 md:py-20'>
+          <div className='max-w-lg'>
+
+            {/* Badge */}
+            <div className='animate-fade-up inline-flex items-center gap-2 bg-sr-gold/15
+                          border border-sr-gold/35 rounded-full px-4 py-1.5 mb-5'>
+              <span>🌙</span>
+              <span className='text-sr-gold-l text-[11px] font-semibold tracking-widest uppercase'>
+                AUTENTIK SEJAK DAHULU
+              </span>
             </div>
 
-            <div className="relative max-w-7xl mx-auto px-4 py-24 grid md:grid-cols-2 gap-12 items-center">
-                {/* Text */}
-                <div>
-                    <span className="inline-block text-[--color-accent] text-sm font-medium tracking-widest uppercase mb-4">
-                        Autentik Sejak Dahulu
-                    </span>
-                    <h1 className="font-playfair text-5xl md:text-6xl font-bold text-gray-900 leading-tight mb-6">
-                        Cita Rasa <br />
-                        <span className="text-[--color-primary]">Palembang</span> <br />
-                        di Rumahmu
-                    </h1>
-                    <p className="text-[--color-warm-gray] text-lg mb-8 leading-relaxed">
-                        Pempek, Tekwan, Model, dan berbagai hidangan khas Palembang
-                        dibuat dengan resep autentik dan bahan pilihan terbaik.
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                        <Link href="/menu">
-                            <Button className="bg-[--color-primary] hover:bg-[--color-primary-dark]
-                text-white rounded-xl px-8 h-12 text-base font-medium">
-                                Pesan Sekarang <ArrowRight className="ml-2 w-4 h-4" />
-                            </Button>
-                        </Link>
-                        <Link href="/artikel">
-                            <Button variant="outline"
-                                className="border-[--color-primary] text-[--color-primary]
-                  hover:bg-red-50 rounded-xl px-8 h-12 text-base">
-                                Tentang Kami
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
+            {/* Headline */}
+            <h1 className='animate-fade-up-2 font-display text-5xl md:text-[58px] font-bold text-white
+                          leading-[1.08] mb-5'>
+              Cita Rasa<br />
+              <span className='text-sr-gold'>Palembang</span><br />
+              di Rumahmu
+            </h1>
 
-                {/* Visual */}
-                <div className="hidden md:flex justify-center">
-                    <div className="relative w-96 h-96">
-                        <div className="absolute inset-0 bg-[--color-primary] opacity-10 rounded-full" />
-                        <div className="absolute inset-8 bg-[--color-accent] opacity-10 rounded-full" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-9xl">🍜</span>
-                        </div>
-                    </div>
-                </div>
+            {/* Body */}
+            <p className="animate-fade-up-3" style={{
+              color: 'rgba(255,255,255,0.6)',
+              fontSize: 15, lineHeight: 1.8,
+              marginBottom: 28, maxWidth: 460,
+            }}>
+              Pempek, Tekwan, Model — dibuat dengan resep turun-temurun dan bahan pilihan
+              terbaik, langsung ke pintu rumahmu.
+            </p>
+
+            {/* CTAs */}
+            <div className="animate-fade-up-3" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 40 }}>
+              <Link href="/menu" className="c-btn c-btn-gold c-btn-lg">
+                Pesan Sekarang →
+              </Link>
+              <Link href="/artikel" style={{
+                display: 'inline-flex', alignItems: 'center',
+                padding: '13px 22px', borderRadius: 9,
+                color: 'rgba(255,255,255,0.8)',
+                border: '1.5px solid rgba(255,255,255,0.25)',
+                fontSize: 13, transition: 'all 0.2s',
+              }}>
+                Tentang Kami
+              </Link>
             </div>
-        </section>
-    )
+
+            {/* Stats */}
+            <div className="animate-fade-up-3" style={{ display: 'flex', gap: 32 }}>
+              {[['10+', 'Menu Pilihan'], ['3', 'Cabang'], ['1K+', 'Pelanggan']].map(([n, l]) => (
+                <div key={l}>
+                  <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 700, color: '#E8A020' }}>{n}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
 }

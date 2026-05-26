@@ -1,62 +1,91 @@
-// frontend/src/components/layout/Footer.tsx
+'use client'
 import Link from 'next/link'
-import { MapPin, Phone } from 'lucide-react'
+import Logo from '@/components/ui/Logo'
+
+const NAV_LINKS = [['/', 'Beranda'], ['/menu', 'Produk'], ['/artikel', 'Artikel']] as const
+const CONTACTS = [
+  ['📍', 'Palembang, Sumatera Selatan'],
+  ['📞', '0711-234-567'],
+  ['✉️', 'hello@seraso.id'],
+] as const
+const SOCIAL = ['📘', '📷', '🐦', '▶️'] as const
 
 export default function Footer() {
-    return (
-        <footer className="bg-[--color-primary] text-white mt-20">
-            <div className="max-w-7xl mx-auto px-4 py-12 grid md:grid-cols-3 gap-8">
-                {/* Brand */}
-                <div>
-                    <h3 className="font-playfair text-2xl font-bold mb-2">Seraso Palembang</h3>
-                    <p className="text-red-200 text-sm leading-relaxed">
-                        Makanan khas Palembang autentik yang dibuat dengan cinta dan resep turun-temurun.
-                    </p>
-                </div>
+  return (
+    <footer className="bg-sr-navy pt-12 pb-6">
+      <div className="c-app">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1.5fr] gap-8 mb-10">
 
-                {/* Links */}
-                <div>
-                    <h4 className="font-semibold mb-4 text-red-100">Navigasi</h4>
-                    <div className="space-y-2">
-                        {[
-                            { href: '/', label: 'Beranda' },
-                            { href: '/menu', label: 'Menu' },
-                            { href: '/artikel', label: 'Artikel' },
-                        ].map(l => (
-                            <Link key={l.href} href={l.href}
-                                className="block text-sm text-red-200 hover:text-white transition-colors">
-                                {l.label}
-                            </Link>
-                        ))}
-                    </div>
+          {/* Brand */}
+          <div className="sm:col-span-2 lg:col-span-1">
+            <Logo size={28} />
+            <p className="text-xs text-white/45 leading-relaxed mt-3 max-w-[240px]">
+              Makanan khas Palembang autentik dengan resep turun-temurun yang telah menemani keluarga Indonesia.
+            </p>
+            <div className="flex gap-2 mt-4">
+              {SOCIAL.map(ic => (
+                <div
+                  key={ic}
+                  className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-sm cursor-pointer hover:bg-white/20 transition-colors"
+                >
+                  {ic}
                 </div>
-
-                {/* Contact */}
-                <div>
-                    <h4 className="font-semibold mb-4 text-red-100">Hubungi Kami</h4>
-                    <div className="space-y-3 text-sm text-red-200">
-                        <div className="flex items-start gap-2">
-                            <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                            <span>Jl. Contoh No. 1, Palembang, Sumatera Selatan</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Phone className="w-4 h-4 shrink-0" />
-                            <span>0711-000-001</span>
-                        </div>
-
-                        {/* <div className="flex items-center gap-2">
-                            <Instagram className="w-4 h-4 shrink-0" />
-                            <span>@seraso.palembang</span>
-                        </div> */}
-                    </div>
-                </div>
+              ))}
             </div>
+          </div>
 
-            <div className="border-t border-red-800 py-4">
-                <p className="text-center text-xs text-red-300">
-                    © {new Date().getFullYear()} Seraso Palembang. All rights reserved.
-                </p>
+          {/* Nav */}
+          <div>
+            <p className="text-white font-semibold text-[13px] mb-3">Navigasi</p>
+            {NAV_LINKS.map(([href, label]) => (
+              <Link
+                key={href}
+                href={href}
+                className="block text-white/45 text-xs mb-2 hover:text-white transition-colors"
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Contact */}
+          <div>
+            <p className="text-white font-semibold text-[13px] mb-3">Kontak</p>
+            {CONTACTS.map(([ic, t]) => (
+              <div key={t} className="flex gap-1.5 text-xs text-white/45 mb-2">
+                {ic} {t}
+              </div>
+            ))}
+          </div>
+
+          {/* Newsletter */}
+          <div>
+            <p className="text-white font-semibold text-[13px] mb-2">Newsletter</p>
+            <p className="text-[11px] text-white/40 mb-3 leading-relaxed">
+              Dapatkan promo eksklusif langsung ke email kamu
+            </p>
+            <div className="flex gap-1.5">
+              <input
+                placeholder="Email kamu..."
+                className="flex-1 px-3 py-2 rounded-lg border border-white/15 bg-white/[0.08] text-white text-xs placeholder:text-white/30 outline-none focus:border-sr-gold transition-colors"
+              />
+              <button className="bg-sr-gold text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors border-0 cursor-pointer hover:opacity-90">
+                Daftar
+              </button>
             </div>
-        </footer>
-    )
+          </div>
+        </div>
+
+        {/* Bottom bar */}
+        <div className="border-t border-white/10 pt-5 flex flex-col sm:flex-row justify-between items-center gap-2">
+          <p className="text-[11px] text-white/30">© 2026 Seraso Palembang. All rights reserved.</p>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 bg-sr-red rounded-full" />
+            <div className="w-2 h-2 bg-white rounded-full" />
+            <span className="text-[10px] text-white/30 ml-1">Made with ❤️ in Palembang</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  )
 }
