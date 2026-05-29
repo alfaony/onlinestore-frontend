@@ -17,6 +17,10 @@ import OTPModal from './OTPModal'
 import ShippingOptions from './ShippingOptions'
 import VoucherInput from './VoucherInput'
 
+interface Props {
+  onPaymentSuccess?: () => void
+}
+
 const S = {
   red: '#C41E3A', navy: '#1B3A6B', gold: '#E8A020',
   creamDp: '#EDD9B8', creamD: '#F5EDD9',
@@ -111,7 +115,7 @@ function Sidebar({ grouped, shippings, voucherDiscount }: {
 }
 
 // ─── Main ─────────────────────────────────────────────────
-export default function CheckoutFlow() {
+export default function CheckoutFlow({ onPaymentSuccess }: Props) {
   const router = useRouter()
 
   const items = useCartItems()
@@ -184,9 +188,15 @@ export default function CheckoutFlow() {
         order_numbers: data.order_numbers,
       }, { headers: authHeader })
 
-        ; (window as any).snap?.pay(payment.midtrans_token, {
-          onSuccess: () => { clearCart(); router.push(`/checkout/success?orders=${data.order_numbers.join(',')}`) },
-          onPending: () => { clearCart(); router.push(`/checkout/success?orders=${data.order_numbers.join(',')}`) },
+        ;(window as any).snap?.pay(payment.midtrans_token, {
+          onSuccess: () => {
+            onPaymentSuccess?.()   // ← set flag dulu
+            router.push(`/checkout/success?orders=${data.order_numbers.join(',')}`)
+          },
+          onPending: () => {
+            onPaymentSuccess?.()
+            router.push(`/checkout/success?orders=${data.order_numbers.join(',')}`)
+          },
           onError: () => toast.error('Pembayaran gagal. Coba lagi.'),
           onClose: () => toast.info('Pembayaran dibatalkan.'),
         })

@@ -1,18 +1,21 @@
-// src/app/(customer)/checkout/page.tsx
 'use client'
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useCartStore } from '@/stores/cart.store'
 import CheckoutFlow from '@/components/checkout/CheckoutFlow'
+import { useCartStore } from '@/stores/cart.store'
+import { useRouter } from 'next/navigation'
+import { useEffect, useRef } from 'react'
 
 export default function CheckoutPage() {
-    const router = useRouter()
-    const items = useCartStore(s => s.items)
+  const router      = useRouter()
+  const items       = useCartStore(s => s.items)
+  const navigating  = useRef(false) // ← flag, jangan redirect kalau sedang navigasi
 
-    useEffect(() => {
-        if (items.length === 0) router.replace('/menu')
-    }, [items, router])
+  useEffect(() => {
+    if (items.length === 0 && !navigating.current) {
+      router.replace('/menu')
+    }
+  }, [items, router])
 
-    if (items.length === 0) return null
-    return <CheckoutFlow />
+  if (items.length === 0) return null
+
+  return <CheckoutFlow onPaymentSuccess={() => { navigating.current = true }} />
 }
