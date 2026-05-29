@@ -1,14 +1,14 @@
 'use client'
-import {
-  useCartStore,
-  useCartTotal,
-  useCartCount,
-} from '@/stores/cart.store'
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import Logo from '@/components/ui/Logo'
 import { formatRupiah } from '@/lib/utils'
+import {
+  useCartCount,
+  useCartStore,
+  useCartTotal,
+} from '@/stores/cart.store'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 const LINKS = [['/', 'Beranda'], ['/menu', 'Menu'], ['/artikel', 'Artikel']] as const
 
@@ -16,8 +16,9 @@ export default function Navbar() {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [mobileOpen, setMobile] = useState(false)
-  const cartCount = useCartCount()
-  const cartTotal = useCartTotal()
+
+  const cartCount   = useCartCount()
+  const cartTotal   = useCartTotal()
   const setCartOpen = useCartStore(s => s.setCartOpen)
   useEffect(() => setMounted(true), [])
 

@@ -1,22 +1,19 @@
 'use client'
-import {
-  useCartStore,
-  useCartItems,
-  useCartBranchCount,
-  useCartTotal,
-  groupCartByBranch,
-  type BranchGroup,  // ← tambah ini
-  type CartItem,     // ← tambah ini
-} from '@/stores/cart.store'
-import { useMemo } from 'react'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
-import { useMemberStore } from '@/stores/member.store'
-import { formatRupiah } from '@/lib/utils'
 import api from '@/lib/api'
-import OTPModal from './OTPModal'
+import { formatRupiah } from '@/lib/utils'
+import {
+  groupCartByBranch,
+  useCartBranchCount,
+  useCartItems,
+  useCartStore,
+  type BranchGroup
+} from '@/stores/cart.store'
+import { useMemberStore } from '@/stores/member.store'
+import { useRouter } from 'next/navigation'
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import AddressForm from './AddressForm'
+import OTPModal from './OTPModal'
 import ShippingOptions from './ShippingOptions'
 import VoucherInput from './VoucherInput'
 
@@ -151,13 +148,35 @@ export default function CheckoutFlow() {
     setLoading(true)
     try {
       const { data } = await api.post('/orders', {
-        phone: '0' + phone,
-        name, email, address, notes,
+        phone:      '0' + phone,
+        name,
+        email,
+        notes,
         voucher_id: voucher?.id ?? null,
+        // ✅ address kirim objek lengkap
+        address: {
+          address:       address.address,
+          detail:        address.detail,
+          province_name: address.province_name,
+          regency_name:  address.regency_name,
+          district_name: address.district_name,
+          village_name:  address.village_name,
+          postal_code:   address.postal_code,
+          latitude:      address.latitude,
+          longitude:     address.longitude,
+        },
         branches: grouped.map(g => ({
           branch_id: g.branchId,
-          items: g.items.map(i => ({ product_id: i.id, quantity: i.qty, price: i.price })),
-          shipping: { courier: shippings[g.branchId].courier, service: shippings[g.branchId].service, cost: shippings[g.branchId].price },
+          items: g.items.map(i => ({
+            product_id: i.id,
+            quantity:   i.qty,
+            price:      i.price,
+          })),
+          shipping: {
+            courier: shippings[g.branchId].courier,
+            service: shippings[g.branchId].service,
+            cost:    shippings[g.branchId].price,
+          },
         })),
       }, { headers: authHeader })
 

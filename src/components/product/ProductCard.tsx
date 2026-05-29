@@ -1,10 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { formatRupiah, storageUrl, stripHtml } from '@/lib/utils'
+import { useCartStore } from '@/stores/cart.store'
+import type { Product } from '@/types'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useCartStore } from '@/stores/cart.store'
-import { formatRupiah, storageUrl, stripHtml } from '@/lib/utils'
-import type { Product } from '@/types'
+import { useEffect, useState } from 'react'
 
 const S = { red: '#C41E3A', navy: '#1B3A6B', gold: '#E8A020', creamD: '#F5EDD9', creamDp: '#EDD9B8', gray: '#6B7280', dark: '#1A1A2E', grayL: '#F3F0EB' }
 
@@ -30,6 +30,7 @@ export default function ProductCard({ product }: { product: Product }) {
     e.preventDefault()
     e.stopPropagation()
     // Selalu tampilkan modal branch — user bisa pilih cabang mana
+    console.log('Product ID:', product.id) // ← debug dulu
     setPendingProduct(product)
   }
 

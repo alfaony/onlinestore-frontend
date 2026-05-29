@@ -1,11 +1,9 @@
 // src/app/(customer)/menu/page.tsx
-import { Suspense } from 'react'
-import type { Metadata } from 'next'
-import ProductGrid from '@/components/product/ProductGrid'
 import CategoryFilter from '@/components/product/CategoryFilter'
+import ProductGrid from '@/components/product/ProductGrid'
 import api from '@/lib/api'
-import { toArray } from '@/lib/utils'
-import type { Category } from '@/types'
+import type { Metadata } from 'next'
+import { Suspense } from 'react'
 
 
 export const metadata: Metadata = { title: 'Menu', description: 'Pilihan makanan khas Palembang.' }
@@ -16,30 +14,26 @@ interface Props { searchParams: Promise<{ category?: string; search?: string; so
 // src/components/product/CategoryFilter.tsx — tambah branch_id ke query
 // src/app/(customer)/menu/page.tsx
 
-async function getData(params: {
-    category?: string
-    search?: string
-    sort?: string
-    branch_id?: string  // ← tambah
-}) {
-    try {
-        const q = new URLSearchParams({ per_page: '12' })
-        if (params.category) q.set('category', params.category)
-        if (params.search) q.set('search', params.search)
-        if (params.branch_id) q.set('branch_id', params.branch_id)
+// src/app/(customer)/menu/page.tsx
+async function getData(params: any) {
+  try {
+    const q = new URLSearchParams({ per_page: '12' })
+    if (params.category)  q.set('category', params.category)
+    if (params.search)    q.set('search', params.search)
+    if (params.branch_id) q.set('branch_id', params.branch_id)
 
-        const [p, c] = await Promise.all([
-            api.get(`/products?${q}`),
-            api.get('/categories'),
-        ])
-        return {
-            products: p.data.data ?? p.data ?? [],
-            categories: toArray<Category>(c.data),
-            meta: p.data,
-        }
-    } catch {
-        return { products: [], categories: [], meta: {} }
+    const [p, c] = await Promise.all([
+      api.get(`/products?${q}`),
+      api.get('/categories'),
+    ])
+
+    return {
+      products:   p.data.data  ?? [],   // ← pastikan ini array of real products
+      categories: Array.isArray(c.data) ? c.data : (c.data?.data ?? []),
     }
+  } catch {
+    return { products: [], categories: [] }
+  }
 }
 
 export default async function MenuPage({ searchParams }: Props) {
