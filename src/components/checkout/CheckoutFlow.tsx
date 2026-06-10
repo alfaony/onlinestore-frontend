@@ -152,34 +152,34 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
     setLoading(true)
     try {
       const { data } = await api.post('/orders', {
-        phone:      '0' + phone,
+        phone: '0' + phone,
         name,
         email,
         notes,
         voucher_id: voucher?.id ?? null,
         // ✅ address kirim objek lengkap
         address: {
-          address:       address.address,
-          detail:        address.detail,
+          address: address.address,
+          detail: address.detail,
           province_name: address.province_name,
-          regency_name:  address.regency_name,
+          regency_name: address.regency_name,
           district_name: address.district_name,
-          village_name:  address.village_name,
-          postal_code:   address.postal_code,
-          latitude:      address.latitude,
-          longitude:     address.longitude,
+          village_name: address.village_name,
+          postal_code: address.postal_code,
+          latitude: address.latitude,
+          longitude: address.longitude,
         },
         branches: grouped.map(g => ({
           branch_id: g.branchId,
           items: g.items.map(i => ({
             product_id: i.id,
-            quantity:   i.qty,
-            price:      i.price,
+            quantity: i.qty,
+            price: i.price,
           })),
           shipping: {
             courier: shippings[g.branchId].courier,
             service: shippings[g.branchId].service,
-            cost:    shippings[g.branchId].price,
+            cost: shippings[g.branchId].price,
           },
         })),
       }, { headers: authHeader })
@@ -188,7 +188,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
         order_numbers: data.order_numbers,
       }, { headers: authHeader })
 
-        ;(window as any).snap?.pay(payment.midtrans_token, {
+        ; (window as any).snap?.pay(payment.midtrans_token, {
           onSuccess: () => {
             onPaymentSuccess?.()   // ← set flag dulu
             router.push(`/checkout/success?orders=${data.order_numbers.join(',')}`)
@@ -205,6 +205,27 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleNextStep1() {
+    if (!name) { toast.error('Isi nama penerima'); return }
+
+    // ✅ Kalau member login → simpan name & email ke DB
+    if (member && token) {
+      try {
+        const { data } = await api.put('/member/profile',
+          { name, email: email || undefined },
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        // Update local store dengan data dari DB
+        useMemberStore.getState().setMember(data, token)
+      } catch {
+        toast.error('Gagal menyimpan profil')
+        return
+      }
+    }
+
+    setStep(2)
   }
 
   return (
@@ -273,7 +294,10 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
                 </p>
               </div>
 
-              <button onClick={() => setStep(2)} disabled={!phone || !name} className="c-btn c-btn-primary c-btn-lg c-btn-full">
+              <button
+                onClick={handleNextStep1}
+                disabled={!name || (!member && !phone)}
+                className="c-btn c-btn-primary c-btn-lg c-btn-full">
                 Lanjut ke Alamat →
               </button>
             </div>
