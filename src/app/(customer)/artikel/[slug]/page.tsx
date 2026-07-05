@@ -7,6 +7,7 @@ import { Calendar, User } from 'lucide-react'
 import api from '@/lib/api'
 import { formatDate, storageUrl } from '@/lib/utils'
 import Tag from '@/components/ui/Tag'
+import type { Article } from '@/types'
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -43,7 +44,7 @@ export default async function ArtikelDetailPage({ params }: Props) {
         <>
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-            <div className={`container-app py-11 pb-16 grid gap-10
+            <div className={`container-app section-pad grid gap-10
                 ${related?.length ? 'grid-cols-1 lg:grid-cols-[2fr_1fr]' : 'grid-cols-1 max-w-2xl'}`}>
 
                 {/* ── Article body ── */}
@@ -54,11 +55,11 @@ export default async function ArtikelDetailPage({ params }: Props) {
                         </div>
                     )}
 
-                    <h1 className="font-display text-3xl md:text-[42px] font-bold text-dark mt-2.5 mb-4 leading-tight">
+                    <h1 className="font-display mt-2.5 mb-4 text-3xl font-bold leading-tight text-sr-dark md:text-[42px]">
                         {article.title}
                     </h1>
 
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-6">
+                    <div className="mb-6 flex flex-wrap items-center gap-4 text-sm text-sr-gray">
                         <span className="flex items-center gap-1.5">
                             <Calendar size={14} /> {formatDate(article.published_at)}
                         </span>
@@ -82,7 +83,7 @@ export default async function ArtikelDetailPage({ params }: Props) {
                     )}
 
                     <div
-                        className="prose text-gray-500 leading-[1.9] text-[15px]"
+                        className="article-content"
                         dangerouslySetInnerHTML={{ __html: article.content }}
                     />
                 </article>
@@ -90,20 +91,20 @@ export default async function ArtikelDetailPage({ params }: Props) {
                 {/* ── Related sidebar (desktop only) ── */}
                 {related?.length > 0 && (
                     <aside className="hidden lg:block">
-                        <h3 className="font-display text-2xl font-bold text-navy mb-5">
+                        <h3 className="font-display mb-5 text-2xl font-bold text-sr-navy">
                             Artikel Terkait
                         </h3>
                         <div className="flex flex-col gap-4">
-                            {related.map((r: any) => (
+                            {related.map((r: Article) => (
                                 <Link key={r.id} href={`/artikel/${r.slug}`} className="flex gap-3">
-                                    <div className="w-[72px] h-[72px] rounded-xl bg-cream-dark flex-shrink-0 relative overflow-hidden">
+                                    <div className="relative h-[72px] w-[72px] flex-shrink-0 overflow-hidden rounded-xl bg-sr-cream-d">
                                         {r.image
                                             ? <Image src={storageUrl(r.image)} alt={r.title} fill className="object-cover" unoptimized />
                                             : <div className="h-full flex items-center justify-center">📰</div>
                                         }
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-sm font-semibold text-navy leading-snug mb-1 line-clamp-2">
+                                        <p className="mb-1 line-clamp-2 text-sm font-semibold leading-snug text-sr-navy">
                                             {r.title}
                                         </p>
                                         <p className="text-[11px] text-gray-400">{formatDate(r.published_at)}</p>

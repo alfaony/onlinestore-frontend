@@ -1,4 +1,5 @@
 import type { Branch } from '@/types'
+import { Clock3, MapPin, Phone } from 'lucide-react'
 
 const DUMMY_BRANCHES: Branch[] = [
   {
@@ -23,30 +24,31 @@ export default function BranchSection({ branches }: { branches: Branch[] }) {
   const displayBranches = branches.length > 0 ? branches : DUMMY_BRANCHES
 
   return (
-    <section className="c-app py-14 md:py-16">
-      <div className="text-center mb-10">
-        <p className="text-sr-gold text-[10px] font-bold tracking-[3px] uppercase mb-1.5">
+    <section className="c-app section-pad">
+      <div className="mx-auto mb-12 max-w-2xl text-center">
+        <p className="section-eyebrow mb-3">
           Lokasi Kami
         </p>
-        <h2 className="font-display text-[38px] font-bold text-sr-navy">
-          Cabang Seraso
+        <h2 className="section-title">
+          Temukan Seraso terdekat
         </h2>
+        <p className="section-copy mx-auto mt-4">Kami hadir lebih dekat agar pesananmu diproses dan dikirim lebih cepat.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="mx-auto grid max-w-4xl grid-cols-1 gap-5 md:grid-cols-2">
         {displayBranches.map(b => (
-          <div key={b.id} className="c-card p-6 flex gap-4">
-            <div className="w-12 h-12 bg-sr-red/10 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
-              📍
+          <div key={b.id} className="c-card flex gap-4 p-6">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-sr-red/10 text-sr-red">
+              <MapPin size={21} />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="font-display text-[20px] font-semibold text-sr-navy mb-1">
                 {b.name}
               </h3>
-              <p className="text-xs text-sr-gray mb-1">📍 {b.address}</p>
-              <p className="text-xs text-sr-red font-medium">☎ {b.phone}</p>
+              <p className="mb-2 flex items-start gap-1.5 text-xs leading-5 text-sr-gray"><MapPin size={13} className="mt-0.5 shrink-0" /> {b.address}</p>
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-sr-red"><Phone size={13} /> {b.phone}</p>
               {'hours' in b && Boolean((b as Record<string, unknown>).hours) && (
-                <p className="text-[11px] text-sr-gray mt-1">🕐 {String((b as Record<string, unknown>).hours)}</p>
+                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-sr-gray"><Clock3 size={12} /> {String((b as Record<string, unknown>).hours)}</p>
               )}
             </div>
           </div>

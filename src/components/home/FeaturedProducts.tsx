@@ -15,6 +15,7 @@ const DUMMY_PRODUCTS: Product[] = [
     images: [],
     primary_image: null,
     shipping_discounts: [],
+    stock: 0,
     qty: 0,
     branchId: '',
   },
@@ -30,6 +31,7 @@ const DUMMY_PRODUCTS: Product[] = [
     images: [],
     primary_image: null,
     shipping_discounts: [],
+    stock: 0,
     qty: 0,
     branchId: '',
   },
@@ -45,6 +47,7 @@ const DUMMY_PRODUCTS: Product[] = [
     images: [],
     primary_image: null,
     shipping_discounts: [],
+    stock: 0,
     qty: 0,
     branchId: '',
   },
@@ -56,22 +59,23 @@ export default function FeaturedProducts({ products }: { products: Product[] }) 
     : DUMMY_PRODUCTS
 
   return (
-    <section className="c-app py-14 md:py-16">
-      <div className="flex items-end justify-between mb-8">
+    <section className="c-app section-pad">
+      <div className="mb-10 flex items-end justify-between gap-6">
         <div>
-          <p className="text-sr-gold text-[10px] font-bold tracking-[3px] uppercase mb-1.5">
+          <p className="section-eyebrow mb-3">
             Pilihan Terbaik
           </p>
-          <h2 className="font-display text-[38px] font-bold text-sr-navy">
+          <h2 className="section-title">
             Menu Unggulan
           </h2>
+          <p className="section-copy mt-3">Menu favorit pelanggan, dibuat segar dari resep keluarga kami.</p>
         </div>
         <Link href="/menu" className="c-btn c-btn-outline c-btn-sm hidden sm:inline-flex">
           Lihat Semua →
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
         {displayProducts.map(p => (
           <ProductCard key={p.id} product={p} />
         ))}

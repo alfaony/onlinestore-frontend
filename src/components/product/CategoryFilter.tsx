@@ -17,14 +17,15 @@ export default function CategoryFilter({ categories, selected, search }: Props) 
 
   function push(key: string, value: string | null) {
     const p = new URLSearchParams(params.toString())
-    value ? p.set(key, value) : p.delete(key)
+    if (value) p.set(key, value)
+    else p.delete(key)
     start(() => router.push(`/menu?${p.toString()}`))
   }
 
   return (
-    <div style={{ marginBottom: 28 }}>
+    <div style={{ marginBottom: 32 }}>
       {/* Search + Sort */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+      <div className="flex flex-col gap-3 sm:flex-row" style={{ marginBottom: 16 }}>
         <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
           <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none' }}>
             🔍
@@ -32,13 +33,15 @@ export default function CategoryFilter({ categories, selected, search }: Props) 
           <input
             defaultValue={search}
             onChange={e => push('search', e.target.value || null)}
-            placeholder="Cari menu Palembang favorit kamu..."
+            aria-label="Cari menu"
+            placeholder="Cari menu favoritmu..."
             className="c-input"
             style={{ paddingLeft: 42, paddingRight: search ? 36 : 14, borderColor: search ? '#C41E3A' : '#EDD9B8' }}
           />
           {search && (
             <button
               onClick={() => push('search', null)}
+              aria-label="Hapus pencarian"
               style={{
                 position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
                 background: '#F3F0EB', border: 'none', width: 22, height: 22,
@@ -51,10 +54,11 @@ export default function CategoryFilter({ categories, selected, search }: Props) 
         </div>
 
         <select
+          aria-label="Urutkan menu"
           onChange={e => push('sort', e.target.value)}
           defaultValue={params.get('sort') ?? 'popular'}
           className="c-input"
-          style={{ width: 'auto', paddingLeft: 14, cursor: 'pointer' }}>
+          style={{ width: 'auto', minWidth: 170, paddingLeft: 14, cursor: 'pointer' }}>
           <option value="popular">Terpopuler</option>
           <option value="price_asc">Harga Terendah</option>
           <option value="price_desc">Harga Tertinggi</option>
@@ -62,7 +66,7 @@ export default function CategoryFilter({ categories, selected, search }: Props) 
       </div>
 
       {/* Category pills */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
         {[{ id: null, slug: null, name: 'Semua' }, ...safeCategories].map(c => {
           const active = c.slug === null ? !selected : selected === c.slug
           return (
@@ -70,12 +74,12 @@ export default function CategoryFilter({ categories, selected, search }: Props) 
               key={c.slug ?? 'all'}
               onClick={() => push('category', c.slug)}
               style={{
-                padding: '7px 16px', borderRadius: 20, border: `1.5px solid ${active ? '#C41E3A' : '#EDD9B8'}`,
+                padding: '8px 16px', borderRadius: 20, border: `1.5px solid ${active ? '#C41E3A' : '#EDD9B8'}`,
                 background: active ? '#C41E3A' : 'transparent',
                 color: active ? '#fff' : '#1B3A6B',
                 fontSize: 12, fontWeight: active ? 600 : 400,
-                cursor: 'pointer', transition: 'all 0.2s',
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap',
+                fontFamily: "var(--font-body), ui-sans-serif, system-ui, sans-serif",
               }}>
               {c.name}
             </button>

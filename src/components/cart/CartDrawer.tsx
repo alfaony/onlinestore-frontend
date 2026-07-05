@@ -36,7 +36,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
         {/* Header */}
         <div style={{ padding: '18px 22px', borderBottom: `1px solid ${S.creamDp}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: S.navy }}>Keranjang</h2>
+            <h2 style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 22, color: S.navy }}>Keranjang</h2>
             {count > 0 && <p style={{ fontSize: 11, color: S.gray, marginTop: 2 }}>{count} item · {branchCount} cabang · {formatRupiah(total)}</p>}
           </div>
           <button onClick={onClose} style={{ background: S.grayL, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 15, color: S.gray, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
@@ -47,7 +47,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
           {grouped.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', paddingBottom: 40 }}>
               <div style={{ fontSize: 52, marginBottom: 14 }}>🛒</div>
-              <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: S.navy, marginBottom: 6 }}>Masih kosong</h3>
+              <h3 style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 22, color: S.navy, marginBottom: 6 }}>Masih kosong</h3>
               <p style={{ color: S.gray, fontSize: 13, marginBottom: 20 }}>Yuk tambahkan menu favoritmu!</p>
               <button onClick={onClose} className="c-btn c-btn-outline c-btn-sm">Lihat Menu</button>
             </div>
@@ -98,12 +98,12 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <span style={{ fontWeight: 600, color: S.dark }}>Total Semua</span>
-              <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: S.red }}>{formatRupiah(total)}</span>
+              <span style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 22, fontWeight: 700, color: S.red }}>{formatRupiah(total)}</span>
             </div>
             <Link href="/checkout" onClick={onClose} className="c-btn c-btn-primary c-btn-lg c-btn-full">
               Checkout Sekarang →
             </Link>
-            <button onClick={onClose} style={{ width: '100%', background: 'transparent', color: S.gray, border: 'none', padding: '10px', fontSize: 12, cursor: 'pointer', fontFamily: "'Plus Jakarta Sans',sans-serif", marginTop: 6 }}>
+            <button onClick={onClose} style={{ width: '100%', background: 'transparent', color: S.gray, border: 'none', padding: '10px', fontSize: 12, cursor: 'pointer', fontFamily: "var(--font-body), sans-serif", marginTop: 6 }}>
               Lanjut Belanja
             </button>
           </div>

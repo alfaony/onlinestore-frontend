@@ -4,25 +4,25 @@ import Logo from '@/components/ui/Logo'
 
 export default function Footer() {
   return (
-    <footer style={{ background: '#1B3A6B', paddingTop: 48, paddingBottom: 24 }}>
+    <footer style={{ background: '#102b55', paddingTop: 64, paddingBottom: 24 }}>
       <div className="c-app">
-        <div className="grid-footer" style={{ marginBottom: 40 }}>
+        <div className="grid-footer" style={{ marginBottom: 52 }}>
 
           {/* Brand */}
           <div>
-            <Logo size={28} />
+            <Logo size={28} light />
             <p style={{ fontSize: 12, lineHeight: 1.8, color: 'rgba(255,255,255,0.45)', marginTop: 12, maxWidth: 240 }}>
-              Makanan khas Palembang autentik dengan resep turun-temurun yang telah menemani keluarga Indonesia.
+              Hidangan khas Palembang autentik, dibuat segar dari resep keluarga untuk meja makan Indonesia.
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              {['📘', '📷', '🐦', '▶️'].map(ic => (
-                <div key={ic} style={{
+              {['Instagram', 'TikTok', 'YouTube'].map(name => (
+                <a key={name} href="#" aria-label={name} style={{
                   width: 32, height: 32,
                   background: 'rgba(255,255,255,0.1)',
                   borderRadius: 7, display: 'flex',
                   alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', fontSize: 14,
-                }}>{ic}</div>
+                  cursor: 'pointer', fontSize:11, color:'rgba(255,255,255,.65)', fontWeight:700,
+                }}>{name.slice(0,2).toUpperCase()}</a>
               ))}
             </div>
           </div>
@@ -55,16 +55,18 @@ export default function Footer() {
             </p>
             <div style={{ display: 'flex', gap: 6 }}>
               <input
+                aria-label="Alamat email untuk newsletter"
+                type="email"
                 placeholder="Email kamu..."
                 style={{
                   flex: 1, padding: '9px 12px', borderRadius: 7,
                   border: '1px solid rgba(255,255,255,0.15)',
                   background: 'rgba(255,255,255,0.08)',
                   color: '#fff', fontSize: 12, outline: 'none',
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontFamily: "var(--font-body), ui-sans-serif, system-ui, sans-serif",
                 }}
               />
-              <button className="c-btn c-btn-gold c-btn-sm">Daftar</button>
+              <button type="button" className="c-btn c-btn-gold c-btn-sm">Daftar</button>
             </div>
           </div>
         </div>
@@ -80,7 +82,7 @@ export default function Footer() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <div style={{ width: 7, height: 7, background: '#C41E3A', borderRadius: '50%' }} />
             <div style={{ width: 7, height: 7, background: '#fff', borderRadius: '50%' }} />
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginLeft: 4 }}>Made with ❤️ in Palembang</span>
+            <span style={{ fontSize:11, color: 'rgba(255,255,255,0.3)', marginLeft: 4 }}>Made with ❤️ in Palembang</span>
           </div>
         </div>
       </div>

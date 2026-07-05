@@ -1,66 +1,83 @@
 'use client'
-import { useEffect, useState } from 'react'
 import api from '@/lib/api'
+import { useCartStore } from '@/stores/cart.store'
 import type { Branch, Product } from '@/types'
+import Modal from '@/components/ui/Modal'
+import { useEffect, useState } from 'react'
 
 interface Props {
   product: Product
-  onSelect: (branch: Branch) => void
   onClose: () => void
 }
 
-export default function BranchSelectorModal({ product, onSelect, onClose }: Props) {
+export default function BranchSelectorModal({ product, onClose }: Props) {
   const [branches, setBranches] = useState<Branch[]>([])
-  const [loading, setLoading] = useState(true)
+  const setActiveBranch = useCartStore(s => s.setActiveBranch)
+  const addItem          = useCartStore(s => s.addItem)
 
   useEffect(() => {
-    api.get('/branches')
-      .then(r => setBranches(Array.isArray(r.data) ? r.data : (r.data?.data ?? [])))
-      .finally(() => setLoading(false))
+    api.get('/branches').then(({ data }) => {
+      let list: Branch[] = Array.isArray(data) ? data : []
+
+      // ✅ Filter hanya branch yang punya produk ini
+      if (product.branch_availability && product.branch_availability.length > 0) {
+        list = list.filter(b => product.branch_availability!.includes(b.id))
+      }
+
+      setBranches(list)
+    })
   }, [])
 
+  function handleSelect(branch: Branch) {
+    setActiveBranch({ id: branch.id, name: branch.name })
+    addItem(product, 1, branch)
+    onClose()
+  }
+
   return (
-    <>
-      <div onClick={onClose} className="animate-fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.48)', zIndex: 200 }} />
-      <div style={{ position: 'fixed', inset: 0, zIndex: 201, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <div className="animate-modal-in" style={{ background: '#fff', borderRadius: 20, padding: 28, width: '100%', maxWidth: 440, boxShadow: '0 24px 64px rgba(0,0,0,0.18)' }}>
-
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', marginBottom: 20 }}>
-            <div>
-              <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, fontWeight: 700, color: '#1B3A6B', marginBottom: 4 }}>Pilih Cabang</h2>
-              <p style={{ fontSize: 12, color: '#6B7280' }}>Untuk pesanan <strong>{product.name}</strong></p>
-            </div>
-            <button onClick={onClose} style={{ background: '#F3F0EB', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 15, color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+    <Modal open onClose={onClose} titleId="branch-selector-title" maxWidth={420}>
+      <div style={{ padding:22 }}>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:16 }}>
+          <div>
+            <span style={{ fontSize:11, fontWeight:700, color:'#C41E3A', letterSpacing:'.08em' }}>PILIH TOKO</span>
+            <h3 id="branch-selector-title" style={{ fontFamily:'var(--font-display)', fontSize:24, lineHeight:1.1, fontWeight:700, color:'#1B3A6B', marginTop:3 }}>
+              {product.name}
+            </h3>
           </div>
-
-          {/* Branches */}
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '24px', color: '#6B7280', fontSize: 13 }}>Memuat cabang...</div>
-          ) : branches.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '24px', color: '#6B7280', fontSize: 13 }}>Tidak ada cabang tersedia</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-              {branches.map(b => (
-                <button key={b.id} onClick={() => onSelect(b)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '1.5px solid #EDD9B8', borderRadius: 12, background: '#fff', cursor: 'pointer', textAlign: 'left', transition: 'all 0.18s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#C41E3A'; e.currentTarget.style.background = 'rgba(196,30,58,0.03)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#EDD9B8'; e.currentTarget.style.background = '#fff' }}>
-                  <div style={{ width: 44, height: 44, background: 'rgba(196,30,58,0.08)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>📍</div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1A2E', marginBottom: 2 }}>{b.name}</p>
-                    <p style={{ fontSize: 11, color: '#6B7280' }}>{b.address}</p>
-                    <p style={{ fontSize: 11, color: '#10B981', marginTop: 3, fontWeight: 500 }}>✓ Tersedia{b.hours ? ` · ${b.hours}` : ''}</p>
-                  </div>
-                  <span style={{ color: '#C41E3A', fontSize: 18 }}>›</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          <button onClick={onClose} className="c-btn c-btn-ghost c-btn-full">Batal</button>
+          <button type="button" onClick={onClose} aria-label="Tutup modal" style={{ width:34, height:34, borderRadius:10, border:0, background:'#F3F0EB', color:'#6B7280', fontSize:17 }}>×</button>
         </div>
+        <p style={{ fontSize:12, color:'#6B7280', marginBottom:16 }}>
+          {branches.length === 0
+            ? 'Produk ini sedang tidak tersedia di cabang manapun'
+            : 'Pilih cabang untuk pesan produk ini:'
+          }
+        </p>
+
+        {branches.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'20px 0', color:'#6B7280', fontSize:13 }}>
+            😔 Mohon coba lagi nanti
+          </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {branches.map(b => (
+              <button key={b.id} onClick={() => handleSelect(b)}
+                style={{ display:'flex', alignItems:'center', gap:12, width:'100%', padding:'12px 14px', border:'1.5px solid #EDD9B8', borderRadius:12, background:'#fff', cursor:'pointer', textAlign:'left' }}>
+                <span style={{ display:'grid', placeItems:'center', width:38, height:38, borderRadius:10, background:'rgba(27,58,107,.07)', fontSize:18, flexShrink:0 }}>📍</span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:14, fontWeight:600, color:'#1A1A2E' }}>{b.name}</div>
+                  <div style={{ fontSize:11, color:'#6B7280' }}>{b.address}</div>
+                  <p style={{ fontSize:11, color:'#10B981', marginTop:2 }}>✓ Tersedia</p>
+                </div>
+                <span style={{ color:'#1B3A6B' }}>→</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <button onClick={onClose} className="c-btn c-btn-ghost c-btn-md c-btn-full" style={{ marginTop:14 }}>
+          Tutup
+        </button>
       </div>
-    </>
+    </Modal>
   )
 }

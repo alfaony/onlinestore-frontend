@@ -50,7 +50,7 @@ export default async function HomePage() {
       <section style={{ background: 'linear-gradient(135deg, #F5EDD9, #EDD9B8)', borderTop: '3px solid #E8A020', padding: '52px 0' }}>
         <div className="c-app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 }}>
           <div>
-            <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 34, fontWeight: 700, color: '#1B3A6B', marginBottom: 6 }}>
+            <h2 style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 34, fontWeight: 700, color: '#1B3A6B', marginBottom: 6 }}>
               Siap menikmati Palembang?
             </h2>
             <p style={{ color: '#6B7280', fontSize: 14 }}>Pesan sekarang dan rasakan cita rasa autentiknya</p>

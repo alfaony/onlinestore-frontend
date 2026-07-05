@@ -9,13 +9,18 @@ import {
   type BranchGroup
 } from '@/stores/cart.store'
 import { useMemberStore } from '@/stores/member.store'
+import type { Branch, PromotionPreview } from '@/types'
+import axios from 'axios'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import AddressForm from './AddressForm'
+import AddressForm, { type AddressPayload } from './AddressForm'
+import FulfillmentToggle, { type FulfillmentType } from './FulfillmentToggle'
 import OTPModal from './OTPModal'
-import ShippingOptions from './ShippingOptions'
+import PickupScheduler from './PickupScheduler'
+import ShippingOptions, { type Rate } from './ShippingOptions'
 import VoucherInput from './VoucherInput'
+
 
 interface Props {
   onPaymentSuccess?: () => void
@@ -28,11 +33,31 @@ const S = {
   dark: '#1A1A2E', green: '#10B981',
 }
 
+interface ApiErrorData {
+  message?: string
+  errors?: Record<string, string[]>
+}
+
+function apiErrorMessage(error: unknown, fallback: string) {
+  if (!axios.isAxiosError<ApiErrorData>(error)) return fallback
+
+  return error.response?.data?.errors?.promo_code?.[0]
+    ?? error.response?.data?.errors?.items?.join(' ')
+    ?? error.response?.data?.message
+    ?? fallback
+}
+
+function stockIssuesFrom(error: unknown): string[] | null {
+  if (!axios.isAxiosError<ApiErrorData>(error)) return null
+
+  return error.response?.data?.errors?.items ?? null
+}
+
 // ─── Step Indicator ───────────────────────────────────────
 const STEPS = [
   { n: '1', label: 'Verifikasi', sub: 'OTP WhatsApp', icon: '📱' },
   { n: '2', label: 'Alamat', sub: 'Lokasi Pengiriman', icon: '📍' },
-  { n: '3', label: 'Pembayaran', sub: 'Metode Bayar', icon: '💳' },
+  { n: '3', label: 'Pembayaran', sub: 'Promo & Konfirmasi', icon: '💳' },
 ]
 
 function StepBar({ step }: { step: number }) {
@@ -55,7 +80,7 @@ function StepBar({ step }: { step: number }) {
               </div>
               <div className="hidden sm:block">
                 <div style={{ fontSize: 11, fontWeight: 600, color: step === i + 1 ? S.red : step > i ? S.green : S.gray }}>{s.label}</div>
-                <div style={{ fontSize: 10, color: S.gray }}>{s.sub}</div>
+                <div style={{ fontSize:11, color: S.gray }}>{s.sub}</div>
               </div>
             </div>
           </div>
@@ -67,23 +92,30 @@ function StepBar({ step }: { step: number }) {
 }
 
 // ─── Sidebar Summary ──────────────────────────────────────
-function Sidebar({ grouped, shippings, voucherDiscount }: {
+function Sidebar({ grouped, shippings, preview, fulfillmentType }: {
   grouped: BranchGroup[]
-  shippings: Record<string, any>
-  voucherDiscount: number
+  shippings: Record<string, Rate>
+  preview: PromotionPreview | null
+  fulfillmentType: FulfillmentType
 }) {
-  const totalItems = grouped.reduce((s, g) => s + g.subtotal, 0)
-  const totalShip = grouped.reduce((s, g) => s + (shippings[g.branchId]?.price ?? 0), 0)
-  const grand = totalItems + totalShip - voucherDiscount
+  const totalItems     = grouped.reduce((s, g) => s + g.subtotal, 0)
+  const totalShipping  = fulfillmentType === 'delivery' ? grouped.reduce((s, g) => s + (shippings[g.branchId]?.price ?? 0), 0) : 0
+  const totalInsurance = fulfillmentType === 'delivery' ? grouped.reduce((s, g) => s + (shippings[g.branchId]?.insurance_fee ?? 0), 0) : 0
+  const productDiscount = preview?.product_discount ?? 0
+  const shippingDiscount = preview?.shipping_discount ?? 0
+  const grand = preview?.grand_total ?? totalItems + totalShipping + totalInsurance
 
   return (
-    <div style={{ width: '100%', maxWidth: 290, background: '#fff', borderRadius: 16, padding: 20, border: `1px solid ${S.creamDp}`, position: 'sticky', top: 80, alignSelf: 'start', flexShrink: 0 }}>
-      <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: S.navy, marginBottom: 14 }}>Ringkasan</h3>
+    <div className="checkout-summary" style={{ width: '100%', maxWidth: 290, background: '#fff', borderRadius: 16, padding: 20, border: `1px solid ${S.creamDp}`, position: 'sticky', top: 80, alignSelf: 'start', flexShrink: 0 }}>
+      <h3>Ringkasan</h3>
 
-      {grouped.map(({ branchId, branchName, items, subtotal }) => (
-        <div key={branchId} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${S.grayL}` }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: S.navy, marginBottom: 8 }}>📍 {branchName}</p>
-          {items.map(item => (
+      {grouped.map(({ branchId, branchName, items, subtotal }) => {
+        const ship = shippings[branchId]
+        return (
+          <div key={branchId} style={{ marginBottom:14, paddingBottom:14, borderBottom:`1px solid ${S.grayL}` }}>
+            <p style={{ fontSize:11, fontWeight:600, color:S.navy, marginBottom:8 }}>📍 {branchName}</p>
+
+            {items.map(item => (
             <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
               <div style={{ width: 32, height: 32, background: S.creamD, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🍜</div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -92,33 +124,73 @@ function Sidebar({ grouped, shippings, voucherDiscount }: {
               <span style={{ fontSize: 11, fontWeight: 600, flexShrink: 0 }}>{formatRupiah(item.price * item.qty)}</span>
             </div>
           ))}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: S.gray, marginTop: 6 }}>
-            <span>Ongkir</span>
-            <span>{shippings[branchId] ? formatRupiah(shippings[branchId].price) : '—'}</span>
-          </div>
-        </div>
-      ))}
 
-      <div style={{ paddingTop: 4 }}>
-        {voucherDiscount > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: S.green, marginBottom: 4 }}>
-            <span>Voucher</span><span>− {formatRupiah(voucherDiscount)}</span>
+            {/* ✅ Ganti baris "Ongkir" tunggal jadi breakdown */}
+            {fulfillmentType === 'pickup' ? (
+              <div style={{ fontSize:11, color:S.green, marginTop:6 }}>✓ Pickup di cabang · gratis pengiriman</div>
+            ) : ship ? (
+              <div style={{ marginTop:8, paddingTop:8, borderTop:`1px dashed ${S.grayL}` }}>
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:S.gray, marginBottom:3 }}>
+                  <span>Ongkir ({ship.courier_name})</span>
+                  <span>{formatRupiah(ship.price)}</span>
+                </div>
+                {ship.insurance_fee > 0 && (
+                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:S.gray, marginBottom:3 }}>
+                    <span>🛡️ Asuransi</span>
+                    <span>{formatRupiah(ship.insurance_fee)}</span>
+                  </div>
+                )}
+                {ship.free_cooking && (
+                  <div style={{ fontSize:11, color:S.green, marginTop:4 }}>⚡🍳 Instant + Gratis Masak</div>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize:11, color:S.gray, marginTop:6 }}>Ongkir — belum dipilih</div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* ✅ Total breakdown */}
+      <div style={{ paddingTop:4 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:S.gray, marginBottom:4 }}>
+          <span>Subtotal Produk</span><span>{formatRupiah(totalItems)}</span>
+        </div>
+        <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:S.gray, marginBottom:4 }}>
+          <span>Total Ongkir</span><span>{formatRupiah(totalShipping)}</span>
+        </div>
+        {totalInsurance > 0 && (
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:S.gray, marginBottom:4 }}>
+            <span>🛡️ Asuransi</span><span>{formatRupiah(totalInsurance)}</span>
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontWeight: 600, fontSize: 13 }}>Total Bayar</span>
-          <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 700, color: S.red }}>{formatRupiah(grand)}</span>
+        {productDiscount > 0 && (
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:S.green, marginBottom:4 }}>
+            <span>Diskon Produk</span><span>− {formatRupiah(productDiscount)}</span>
+          </div>
+        )}
+        {shippingDiscount > 0 && (
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:S.green, marginBottom:4 }}>
+            <span>Diskon Pengiriman</span><span>− {formatRupiah(shippingDiscount)}</span>
+          </div>
+        )}
+        {preview?.applied_promotions.map(promo => (
+          <div key={promo.id} style={{ fontSize:11, color:S.green, marginBottom:3 }}>✓ {promo.name}</div>
+        ))}
+        <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, paddingTop:8, borderTop:`1px solid ${S.creamDp}` }}>
+          <span style={{ fontWeight:600, fontSize:13 }}>Total Bayar</span>
+          <span style={{ fontFamily:"var(--font-display), Georgia, serif", fontSize:20, fontWeight:700, color:S.red }}>{formatRupiah(grand)}</span>
         </div>
       </div>
     </div>
   )
 }
-
 // ─── Main ─────────────────────────────────────────────────
 export default function CheckoutFlow({ onPaymentSuccess }: Props) {
   const router = useRouter()
 
   const items = useCartItems()
+
   const branchCount = useCartBranchCount()
   const clearCart = useCartStore(s => s.clearCart)
 
@@ -132,33 +204,133 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
   const [email, setEmail] = useState('')
   const [showOTP, setShowOTP] = useState(false)
 
-  const [address, setAddress] = useState<any>(null)
-  const [shippings, setShippings] = useState<Record<string, any>>({})
+  const [address, setAddress] = useState<AddressPayload | null>(null)
+  const [shippings, setShippings] = useState<Record<string, Rate>>({})
 
-  const [voucher, setVoucher] = useState<any>(null)
-  const [payMethod, setPayMethod] = useState('transfer')
+  const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>('delivery')
+  const [pickupSchedule, setPickupSchedule] = useState<{ datetime: string; note: string } | null>(null)
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [promoCode, setPromoCode] = useState<string | null>(null)
+  const [promoResult, setPromoResult] = useState<{ key: string; preview: PromotionPreview } | null>(null)
+  const [applyingPromo, setApplyingPromo] = useState(false)
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
+  const [stockIssues, setStockIssues] = useState<string[] | null>(null)
 
-  const allShippingPicked = grouped.every(g => !!shippings[g.branchId])
-  const voucherDiscount = voucher?.discount_amount ?? 0
-  const grandTotal = grouped.reduce((s, g) => s + g.subtotal + (shippings[g.branchId]?.price ?? 0), 0) - voucherDiscount
-
+  const allShippingPicked = fulfillmentType === 'pickup' || grouped.every(g => !!shippings[g.branchId])
+  const pricingReady = grouped.length > 0 && allShippingPicked
+  const calculatedTotal = grouped.reduce((s, g) => {
+    const ship = shippings[g.branchId]
+    return s + g.subtotal + (fulfillmentType === 'delivery' ? (ship?.price ?? 0) + (ship?.insurance_fee ?? 0) : 0)
+  }, 0)
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {}
 
+  const promoBranches = useMemo(() => grouped.map(group => {
+    const shipping = shippings[group.branchId]
+
+    return {
+      branch_id: group.branchId,
+      items: group.items.map(item => ({ product_id: item.id, quantity: item.qty })),
+      shipping: fulfillmentType === 'delivery' && shipping ? {
+        cost: shipping.price,
+        insurance_fee: shipping.insurance_fee ?? 0,
+        is_instant: shipping.is_instant ?? false,
+      } : {
+        cost: 0,
+        insurance_fee: 0,
+        is_instant: false,
+      },
+    }
+  }), [fulfillmentType, grouped, shippings])
+
+  const promoInputKey = useMemo(
+    () => JSON.stringify({ promoCode, branches: promoBranches }),
+    [promoBranches, promoCode]
+  )
+  const activePromoPreview = pricingReady && promoResult?.key === promoInputKey
+    ? promoResult.preview
+    : null
+  const promoLoading = applyingPromo || (pricingReady && !activePromoPreview)
+  const grandTotal = activePromoPreview?.grand_total ?? calculatedTotal
+
+  const requestPromoPreview = useCallback(async (code: string | null) => {
+    const { data } = await api.post<PromotionPreview>('/promotions/preview', {
+      promo_code: code,
+      branches: promoBranches,
+    }, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+
+    return data
+  }, [promoBranches, token])
+
+
+  useEffect(() => {
+    api.get('/branches').then(({ data }) => setBranches(Array.isArray(data) ? data : []))
+  }, [])
+
+  useEffect(() => {
+    if (!pricingReady) return
+
+    let cancelled = false
+    requestPromoPreview(promoCode)
+      .then(data => {
+        if (!cancelled) setPromoResult({ key: promoInputKey, preview: data })
+      })
+      .catch(error => {
+        if (cancelled) return
+
+        if (promoCode) {
+          toast.error(apiErrorMessage(error, 'Promo tidak lagi memenuhi syarat.'))
+          setPromoCode(null)
+        } else {
+          setPromoResult(null)
+        }
+      })
+
+    return () => { cancelled = true }
+  }, [pricingReady, promoCode, promoInputKey, requestPromoPreview])
+
+  async function applyPromo(code: string) {
+    if (!pricingReady) {
+      toast.error('Pilih pengiriman terlebih dahulu.')
+      return false
+    }
+
+    setApplyingPromo(true)
+    try {
+      const preview = await requestPromoPreview(code)
+      setPromoResult({
+        key: JSON.stringify({ promoCode: code, branches: promoBranches }),
+        preview,
+      })
+      setPromoCode(code)
+      toast.success(`Promo ${code} berhasil diterapkan.`)
+      return true
+    } catch (error: unknown) {
+      toast.error(apiErrorMessage(error, 'Kode promo tidak valid.'))
+      return false
+    } finally {
+      setApplyingPromo(false)
+    }
+  }
+
+
   async function placeOrder() {
-    if (!address) { toast.error('Pilih alamat pengiriman'); return }
-    if (!allShippingPicked) { toast.error('Pilih kurir untuk semua cabang'); return }
+    if (fulfillmentType === 'delivery' && !address) { toast.error('Pilih alamat pengiriman'); return }
+    if (fulfillmentType === 'delivery' && !allShippingPicked) { toast.error('Pilih kurir untuk semua cabang'); return }
+    if (fulfillmentType === 'pickup' && !pickupSchedule) { toast.error('Pilih jadwal pickup'); return }
     setLoading(true)
+    setStockIssues(null)
     try {
       const { data } = await api.post('/orders', {
         phone: '0' + phone,
         name,
         email,
         notes,
-        voucher_id: voucher?.id ?? null,
-        // ✅ address kirim objek lengkap
-        address: {
+        promo_code: promoCode,
+        fulfillment_type: fulfillmentType,  // ✅ tambah
+
+        // Address hanya kalau delivery
+        address: fulfillmentType === 'delivery' && address ? {
           address: address.address,
           detail: address.detail,
           province_name: address.province_name,
@@ -168,27 +340,37 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
           postal_code: address.postal_code,
           latitude: address.latitude,
           longitude: address.longitude,
-        },
-        branches: grouped.map(g => ({
-          branch_id: g.branchId,
-          items: g.items.map(i => ({
-            product_id: i.id,
-            quantity: i.qty,
-            price: i.price,
-          })),
-          shipping: {
-            courier: shippings[g.branchId].courier,
-            service: shippings[g.branchId].service,
-            cost: shippings[g.branchId].price,
-          },
-        })),
+        } : null,
+
+        // Pickup schedule kalau pickup
+        pickup_scheduled_at: fulfillmentType === 'pickup' ? pickupSchedule?.datetime : null,
+        pickup_note: fulfillmentType === 'pickup' ? pickupSchedule?.note : null,
+
+        branches: grouped.map(g => {
+          const shipping = shippings[g.branchId]
+
+          return {
+            branch_id: g.branchId,
+            items: g.items.map(i => ({ product_id: i.id, quantity: i.qty, price: i.price })),
+            shipping: fulfillmentType === 'delivery' && shipping ? {
+              courier: shipping.courier,
+              service: shipping.service,
+              cost: shipping.price,
+              insurance_fee: shipping.insurance_fee ?? 0,
+              is_instant: shipping.is_instant ?? false,
+              free_cooking: shipping.free_cooking ?? false,
+            } : {
+              courier: 'pickup', service: 'self', cost: 0, insurance_fee: 0, is_instant: false, free_cooking: false,
+            },
+          }
+        }),
       }, { headers: authHeader })
 
       const { data: payment } = await api.post('/orders/payment/initiate', {
         order_numbers: data.order_numbers,
       }, { headers: authHeader })
 
-        ; (window as any).snap?.pay(payment.midtrans_token, {
+        ; window.snap?.pay(payment.midtrans_token, {
           onSuccess: () => {
             onPaymentSuccess?.()   // ← set flag dulu
             router.push(`/checkout/success?orders=${data.order_numbers.join(',')}`)
@@ -200,8 +382,13 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
           onError: () => toast.error('Pembayaran gagal. Coba lagi.'),
           onClose: () => toast.info('Pembayaran dibatalkan.'),
         })
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message ?? 'Terjadi kesalahan.')
+    } catch (error: unknown) {
+      const issues = stockIssuesFrom(error)
+      if (issues && issues.length > 0) {
+        setStockIssues(issues)
+      } else {
+        toast.error(apiErrorMessage(error, 'Terjadi kesalahan.'))
+      }
     } finally {
       setLoading(false)
     }
@@ -234,7 +421,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
         ← Kembali ke Menu
       </button>
 
-      <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 'clamp(32px,5vw,42px)', fontWeight: 700, color: S.navy, marginBottom: 8 }}>
+      <h1 style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 'clamp(32px,5vw,42px)', fontWeight: 700, color: S.navy, marginBottom: 8 }}>
         Checkout
       </h1>
 
@@ -253,8 +440,8 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
 
           {/* Step 1 */}
           {step === 1 && (
-            <div style={{ background: '#fff', borderRadius: 16, padding: 26, border: `1px solid ${S.creamDp}` }}>
-              <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: S.navy, marginBottom: 6 }}>Verifikasi WhatsApp</h2>
+            <div className="checkout-card" style={{ background: '#fff', borderRadius: 16, padding: 26, border: `1px solid ${S.creamDp}` }}>
+              <h2 style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 26, color: S.navy, marginBottom: 6 }}>Verifikasi WhatsApp</h2>
               <p style={{ fontSize: 12, color: S.gray, marginBottom: 20 }}>Verifikasi nomor HP untuk melanjutkan checkout</p>
 
               <div style={{ marginBottom: 16 }}>
@@ -265,18 +452,24 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
                     <input className="c-input" style={{ paddingLeft: 44 }} placeholder="8xxxxxxxxxx" value={phone} onChange={e => setPhone(e.target.value.replace(/^0/, ''))} disabled={!!member} />
                   </div>
                   {!member && (
-                    <button onClick={() => setShowOTP(true)} className="c-btn c-btn-primary c-btn-sm" style={{ flexShrink: 0 }}>
+                    <button onClick={() => {
+                      if (!name.trim()) {
+                        toast.error('Isi nama penerima terlebih dahulu.')
+                        return
+                      }
+                      setShowOTP(true)
+                    }} className="c-btn c-btn-primary c-btn-sm" style={{ flexShrink: 0 }}>
                       Kirim OTP
                     </button>
                   )}
                 </div>
                 {member
                   ? <p style={{ fontSize: 11, color: S.green, marginTop: 4 }}>✓ Terverifikasi sebagai member</p>
-                  : <p style={{ fontSize: 11, color: S.gray, marginTop: 4 }}>Kode OTP akan dikirim via WhatsApp</p>
+                  : <p style={{ fontSize: 11, color: S.gray, marginTop: 4 }}>Verifikasi WhatsApp wajib dilakukan sebelum lanjut ke tahap alamat</p>
                 }
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div className="checkout-contact-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                 <div>
                   <label style={{ fontSize: 12, color: S.gray, display: 'block', marginBottom: 5, fontWeight: 500 }}>Nama Penerima *</label>
                   <input className="c-input" placeholder="Nama lengkap" value={name} onChange={e => setName(e.target.value)} />
@@ -290,81 +483,143 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
               <div style={{ background: S.grayL, borderRadius: 10, padding: 12, marginBottom: 16, display: 'flex', gap: 8 }}>
                 <span>💡</span>
                 <p style={{ fontSize: 11, color: S.gray, lineHeight: 1.6 }}>
-                  Member baru mendapat <strong style={{ color: S.red }}>voucher gratis ongkir</strong> untuk pesanan pertama!
+                  Promo yang sedang aktif akan dihitung otomatis setelah kamu memilih pengiriman.
                 </p>
               </div>
 
               <button
                 onClick={handleNextStep1}
-                disabled={!name || (!member && !phone)}
+                disabled={!name || !member}
                 className="c-btn c-btn-primary c-btn-lg c-btn-full">
                 Lanjut ke Alamat →
               </button>
+              {!member && (
+                <p style={{ fontSize: 11, color: S.gray, marginTop: 8, textAlign: 'center' }}>
+                  Klik &quot;Kirim OTP&quot; dan masukkan kode verifikasi untuk mengaktifkan tombol ini.
+                </p>
+              )}
             </div>
           )}
 
-          {/* Step 2 */}
           {step === 2 && (
-            <div style={{ background: '#fff', borderRadius: 16, padding: 26, border: `1px solid ${S.creamDp}` }}>
-              <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: S.navy, marginBottom: 6 }}>Alamat Pengiriman</h2>
-              <p style={{ fontSize: 12, color: S.gray, marginBottom: 20 }}>
-                1 alamat untuk {branchCount > 1 ? `semua ${branchCount} cabang` : 'pengiriman'}
-              </p>
+              <div className="checkout-card" style={{ background:'#fff', borderRadius:16, padding:26, border:`1px solid ${S.creamDp}` }}>
+                <h2 style={{ fontFamily:"var(--font-display), Georgia, serif", fontSize:26, color:S.navy, marginBottom:6 }}>
+                  Pengiriman
+                </h2>
+                <p style={{ fontSize:12, color:S.gray, marginBottom:20 }}>
+                  Pilih cara menerima pesananmu
+                </p>
 
-              <AddressForm onSelect={setAddress} member={member} />
+                {/* ✅ Toggle Delivery/Pickup */}
+                <FulfillmentToggle value={fulfillmentType} onChange={setFulfillmentType} />
 
-              {/* Shipping per branch */}
-              {address && (
-                <div style={{ marginTop: 20, borderTop: `1px solid ${S.grayL}`, paddingTop: 20 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: S.dark, marginBottom: 14 }}>🚚 Pilih Kurir per Cabang</p>
-                  {grouped.map(g => (
-                    <div key={g.branchId} style={{ marginBottom: 16, padding: 16, border: `1.5px solid ${shippings[g.branchId] ? 'rgba(16,185,129,0.3)' : S.creamDp}`, borderRadius: 12, background: shippings[g.branchId] ? 'rgba(16,185,129,0.03)' : '#fff', transition: 'all 0.2s' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                        <span>📍</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: S.navy }}>{g.branchName}</span>
-                        <span style={{ fontSize: 11, color: S.gray }}>· {formatRupiah(g.subtotal)}</span>
-                        {shippings[g.branchId] && <span style={{ fontSize: 10, color: S.green, marginLeft: 'auto', fontWeight: 600 }}>✓ Dipilih</span>}
+                {fulfillmentType === 'delivery' ? (
+                  <>
+                    {/* Existing AddressForm */}
+                    <AddressForm onSelect={setAddress} member={member} />
+
+                    {/* Existing ShippingOptions per branch */}
+                    {grouped.map(g => (
+                      <div key={g.branchId} style={{ marginBottom:16 }}>
+                        <p style={{ fontSize:13, fontWeight:600, color:S.dark, marginBottom:8 }}>
+                          📦 {g.branchName}
+                        </p>
+                        <ShippingOptions
+                          address={address}
+                          branchId={g.branchId}
+                          items={g.items}
+                          onSelect={rate => setShippings(prev => ({ ...prev, [g.branchId]: rate }))}
+                        />
                       </div>
-                      <ShippingOptions
-                        address={address}
-                        branchId={g.branchId}
-                        onSelect={rate => setShippings(prev => ({ ...prev, [g.branchId]: rate }))}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {/* ✅ Pickup — per branch */}
+                    {grouped.map(g => {
+                      const branch = branches.find(b => b.id === g.branchId)
+                      if (!branch) return null
 
-              <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-                <button onClick={() => setStep(1)} className="c-btn c-btn-ghost c-btn-md" style={{ flex: 1 }}>← Kembali</button>
-                <button onClick={() => setStep(3)} disabled={!address || !allShippingPicked} className="c-btn c-btn-primary c-btn-md" style={{ flex: 2 }}>
+                      return (
+                        <div key={g.branchId} style={{ marginBottom:20 }}>
+                          <p style={{ fontSize:13, fontWeight:600, color:S.dark, marginBottom:8 }}>
+                            🏃 Ambil di {g.branchName}
+                          </p>
+                          <PickupScheduler
+                            branch={branch}
+                            onSelect={(datetime, note) => setPickupSchedule({ datetime, note })}
+                          />
+                        </div>
+                      )
+                    })}
+
+                    {/* Info gratis ongkir */}
+                    <div style={{ background:'rgba(16,185,129,0.06)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:10, padding:12, fontSize:12, color:S.green, marginTop:8 }}>
+                      ✓ Gratis biaya pengiriman untuk pickup
+                    </div>
+                  </>
+                )}
+
+                <button
+                  onClick={() => setStep(3)}
+                  disabled={
+                    fulfillmentType === 'delivery'
+                      ? (!address || Object.keys(shippings).length < grouped.length)
+                      : !pickupSchedule
+                  }
+                  className="c-btn c-btn-primary c-btn-lg c-btn-full"
+                  style={{ marginTop:20 }}>
                   Lanjut ke Pembayaran →
                 </button>
               </div>
-            </div>
           )}
 
           {/* Step 3 */}
           {step === 3 && (
-            <div style={{ background: '#fff', borderRadius: 16, padding: 26, border: `1px solid ${S.creamDp}` }}>
-              <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: S.navy, marginBottom: 6 }}>Pembayaran</h2>
+            <div className="checkout-card" style={{ background: '#fff', borderRadius: 16, padding: 26, border: `1px solid ${S.creamDp}` }}>
+              <h2 style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 26, color: S.navy, marginBottom: 6 }}>Pembayaran</h2>
               <p style={{ fontSize: 12, color: S.gray, marginBottom: 20 }}>1 transaksi untuk semua cabang</p>
 
-              <VoucherInput subtotal={grouped.reduce((s, g) => s + g.subtotal, 0)} memberStatus={member ? 'member' : 'guest'} onApply={setVoucher} />
+              {stockIssues && stockIssues.length > 0 && (
+                <div style={{ background: 'rgba(196,30,58,0.06)', border: `1px solid ${S.red}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: S.red, marginBottom: 6 }}>
+                        Beberapa produk tidak bisa diproses
+                      </p>
+                      <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {stockIssues.map((issue, i) => (
+                          <li key={i} style={{ fontSize: 12, color: S.dark, lineHeight: 1.5 }}>{issue}</li>
+                        ))}
+                      </ul>
+                      <p style={{ fontSize: 11, color: S.gray, marginTop: 8 }}>
+                        Hapus atau ganti produk tersebut dari keranjang, lalu coba lagi.
+                      </p>
+                      <button
+                        onClick={() => router.push('/menu')}
+                        className="c-btn c-btn-primary c-btn-sm"
+                        style={{ marginTop: 10 }}>
+                        Kembali ke Menu
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 12, color: S.gray, display: 'block', marginBottom: 8, fontWeight: 500 }}>Metode Pembayaran</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  {[['💳', 'transfer', 'Transfer Bank', 'BCA, Mandiri, BNI'], ['📱', 'qris', 'QRIS', 'GoPay, OVO, Dana'], ['🏧', 'va', 'Virtual Account', 'Semua bank'], ['💰', 'cod', 'COD', 'Bayar di tempat']].map(([ic, val, t, s]) => (
-                    <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, border: `1.5px solid ${payMethod === val ? S.red : S.creamDp}`, borderRadius: 10, cursor: 'pointer', background: payMethod === val ? 'rgba(196,30,58,0.04)' : '#fff', transition: 'all 0.18s' }}>
-                      <input type="radio" name="pay" value={val} checked={payMethod === val} onChange={() => setPayMethod(val)} style={{ accentColor: S.red, width: 16, height: 16 }} />
-                      <span style={{ fontSize: 20 }}>{ic}</span>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: S.dark }}>{t}</div>
-                        <div style={{ fontSize: 10, color: S.gray }}>{s}</div>
-                      </div>
-                    </label>
-                  ))}
+              <VoucherInput
+                preview={activePromoPreview}
+                promoCode={promoCode}
+                loading={promoLoading}
+                onApplyCode={applyPromo}
+                onRemoveCode={() => setPromoCode(null)}
+              />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, marginBottom: 20, background: 'rgba(27,58,107,0.05)', border: '1px solid rgba(27,58,107,0.12)', borderRadius: 12 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 10, background: S.navy, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>💳</div>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: S.navy }}>Pembayaran aman melalui Midtrans</p>
+                  <p style={{ fontSize: 11, color: S.gray, lineHeight: 1.5, marginTop: 2 }}>Pilih transfer bank, virtual account, QRIS, atau metode lain yang tersedia langsung di halaman pembayaran Midtrans.</p>
                 </div>
               </div>
 
@@ -381,14 +636,14 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
 
               <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
                 <button onClick={() => setStep(2)} className="c-btn c-btn-ghost c-btn-md" style={{ flex: 1 }}>← Kembali</button>
-                <button onClick={placeOrder} disabled={loading} className="c-btn c-btn-navy c-btn-md" style={{ flex: 2 }}>
+                <button onClick={placeOrder} disabled={loading || promoLoading || !activePromoPreview} className="c-btn c-btn-navy c-btn-md" style={{ flex: 2 }}>
                   {loading ? '⏳ Memproses...' : `💳 Bayar ${formatRupiah(grandTotal)}`}
                 </button>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
                 {['🔒 SSL', 'Midtrans', 'PCI DSS'].map(t => (
-                  <span key={t} style={{ fontSize: 10, color: S.gray, background: S.grayL, padding: '3px 8px', borderRadius: 4 }}>{t}</span>
+                  <span key={t} style={{ fontSize:11, color: S.gray, background: S.grayL, padding: '3px 8px', borderRadius: 4 }}>{t}</span>
                 ))}
               </div>
             </div>
@@ -396,11 +651,11 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
         </div>
 
         {/* ── Sidebar ── */}
-        <Sidebar grouped={grouped} shippings={shippings} voucherDiscount={voucherDiscount} />
+        <Sidebar grouped={grouped} shippings={shippings} preview={activePromoPreview} fulfillmentType={fulfillmentType} />
       </div>
 
       {showOTP && (
-        <OTPModal open={showOTP} phone={'0' + phone} onClose={() => setShowOTP(false)} onVerified={() => { setShowOTP(false); setStep(2) }} />
+        <OTPModal open={showOTP} phone={'0' + phone} name={name} email={email} onClose={() => setShowOTP(false)} onVerified={() => { setShowOTP(false); setStep(2) }} />
       )}
     </div>
   )

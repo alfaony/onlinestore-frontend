@@ -3,13 +3,12 @@
 import api from '@/lib/api'
 import { useMemberStore } from '@/stores/member.store'
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import type { Member } from '@/types'
 
 // Leaflet SSR fix — import dinamis
 const MapPicker = dynamic(() => import('./MapPicker'), { ssr: false })
-
-const NOMINATIM = 'https://nominatim.openstreetmap.org/reverse'
 
 const S = {
   red:'#C41E3A', navy:'#1B3A6B', creamDp:'#EDD9B8',
@@ -20,7 +19,40 @@ const S = {
 // ─── Types ────────────────────────────────────────────────
 interface Region { code: string; name: string }
 
-interface AddressPayload {
+interface GeocodedAddress {
+  road?: string
+  pedestrian?: string
+  house_number?: string
+  postcode?: string
+  state?: string
+  province?: string
+  city?: string
+  town?: string
+  municipality?: string
+  county?: string
+  state_district?: string
+  city_district?: string
+  district?: string
+  suburb?: string
+  village?: string
+  neighbourhood?: string
+  quarter?: string
+  hamlet?: string
+}
+
+interface GeocodedResult {
+  address?: GeocodedAddress
+  display_name?: string
+  administrative?: {
+    province?: { code?: string; name?: string }
+    regency?: { code?: string; name?: string }
+    district?: { code?: string; name?: string }
+    village?: { code?: string; name?: string }
+    postal_code?: string
+  } | null
+}
+
+export interface AddressPayload {
   label: string; address: string; detail?: string
   latitude?: number; longitude?: number
   province_code?: string; province_name?: string
@@ -32,7 +64,7 @@ interface AddressPayload {
 }
 
 interface SavedAddress extends AddressPayload { id: string; is_default: boolean }
-interface Props { onSelect: (a: AddressPayload) => void; member: any }
+interface Props { onSelect: (a: AddressPayload) => void; member: Member | null }
 
 // ─── Helpers ──────────────────────────────────────────────
 async function fetchWilayah(path: string): Promise<Region[]> {
@@ -43,24 +75,58 @@ async function fetchWilayah(path: string): Promise<Region[]> {
   } catch { return [] }
 }
 
-async function reverseGeocode(lat: number, lng: number) {
-  const res  = await fetch(
-    `${NOMINATIM}?format=json&lat=${lat}&lon=${lng}&accept-language=id&addressdetails=1`,
-    { headers: { 'User-Agent': 'SerasoPalembang/1.0' } }
-  )
-  return res.json()
+async function reverseGeocode(lat: number, lng: number): Promise<GeocodedResult> {
+  const response = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`)
+  if (!response.ok) throw new Error('Reverse geocoding gagal')
+  return response.json()
 }
 
 function normalize(str: string) {
   return str.toLowerCase()
-    .replace(/^(provinsi|kota|kabupaten|kab\.)\s*/i, '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(provinsi|kota|kabupaten|kab|kecamatan|kec|kelurahan|kel|desa)\b\.?/gi, '')
+    .replace(/\b(satu|pertama)\b/g, 'i')
+    .replace(/\b(dua|kedua)\b/g, 'ii')
+    .replace(/\b(tiga|ketiga)\b/g, 'iii')
+    .replace(/\b(empat|keempat)\b/g, 'iv')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim()
 }
 
-function matchRegion(list: Region[], query: string): Region | null {
-  if (!query) return null
-  const q = normalize(query)
-  return list.find(r => normalize(r.name).includes(q) || q.includes(normalize(r.name))) ?? null
+export function matchRegionCandidates(list: Region[], candidates: Array<string | undefined>): Region | null {
+  const queries = candidates.map(value => normalize(value ?? '')).filter(Boolean)
+  if (!queries.length) return null
+
+  const scored = list.map(region => {
+    const name = normalize(region.name)
+    const score = Math.max(...queries.map(query => {
+      if (name === query) return 100
+      if (name.replace(/\s/g, '') === query.replace(/\s/g, '')) return 95
+      if (name.startsWith(query) || query.startsWith(name)) return 80
+      if (name.includes(query) || query.includes(name)) return 60
+
+      const nameWords = new Set(name.split(' '))
+      const queryWords = query.split(' ')
+      const overlap = queryWords.filter(word => nameWords.has(word)).length
+      return overlap ? (overlap / Math.max(nameWords.size, queryWords.length)) * 40 : 0
+    }))
+
+    return { region, score }
+  }).sort((left, right) => right.score - left.score)
+
+  return scored[0]?.score >= 35 ? scored[0].region : null
+}
+
+function matchRegion(list: Region[], code: string | undefined, candidates: Array<string | undefined>) {
+  const normalizedCode = code?.replace(/\D/g, '')
+  if (normalizedCode) {
+    const codeMatch = list.find(region => region.code.replace(/\D/g, '') === normalizedCode)
+    if (codeMatch) return codeMatch
+  }
+
+  return matchRegionCandidates(list, candidates)
 }
 
 // ─── Select Component ─────────────────────────────────────
@@ -94,7 +160,7 @@ export default function AddressForm({ onSelect, member }: Props) {
   // Saved
   const [saved,     setSaved]     = useState<SavedAddress[]>([])
   const [selected,  setSelected]  = useState<string | null>(null)
-  const [showNew,   setShowNew]   = useState(false)
+  const [showNew,   setShowNew]   = useState(!member || !token)
   const [saving,    setSaving]    = useState(false)
 
   // Wilayah cascade
@@ -125,7 +191,7 @@ export default function AddressForm({ onSelect, member }: Props) {
 
   // Load saved
   useEffect(() => {
-    if (!member || !token) { setShowNew(true); return }
+    if (!member || !token) return
     api.get('/member/addresses', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => {
         const list: SavedAddress[] = Array.isArray(r.data) ? r.data : (r.data?.data ?? [])
@@ -140,10 +206,21 @@ export default function AddressForm({ onSelect, member }: Props) {
   // Load provinces when form opens
   useEffect(() => {
     if (!showNew || provinces.length) return
-    setLoadP(true)
-    fetchWilayah('provinces')
-      .then(setProvinces)
-      .finally(() => setLoadP(false))
+
+    let cancelled = false
+    async function loadProvinces() {
+      await Promise.resolve()
+      if (cancelled) return
+      setLoadP(true)
+      const result = await fetchWilayah('provinces')
+      if (!cancelled) {
+        setProvinces(result)
+        setLoadP(false)
+      }
+    }
+
+    void loadProvinces()
+    return () => { cancelled = true }
   }, [showNew])
 
   // Cascade handlers
@@ -177,89 +254,138 @@ export default function AddressForm({ onSelect, member }: Props) {
     setVillage(villages.find(x => x.code === code) ?? null)
   }
 
+  async function applyGeocodedAddress(geocoded: GeocodedResult) {
+    const address = geocoded.address ?? {}
+    const administrative = geocoded.administrative
+    const road = [address.road ?? address.pedestrian, address.house_number].filter(Boolean).join(' ')
+    if (road) setStreet(road)
+    if (administrative?.postal_code ?? address.postcode) {
+      setPostalCode(administrative?.postal_code ?? address.postcode ?? '')
+    }
+
+    let provinceList = provinces
+    if (!provinceList.length) {
+      setLoadP(true)
+      provinceList = await fetchWilayah('provinces')
+      setProvinces(provinceList)
+      setLoadP(false)
+    }
+
+    const matchedProvince = matchRegion(provinceList, administrative?.province?.code, [
+      administrative?.province?.name,
+      address.state,
+      address.province,
+    ])
+    if (!matchedProvince) return { level: 'coordinates' as const }
+    setProvince(matchedProvince)
+    setRegency(null); setDistrict(null); setVillage(null)
+
+    setLoadR(true)
+    const regencyList = await fetchWilayah(`regencies/${matchedProvince.code}`)
+    setRegencies(regencyList)
+    setLoadR(false)
+    const matchedRegency = matchRegion(regencyList, administrative?.regency?.code, [
+      administrative?.regency?.name,
+      address.city,
+      address.town,
+      address.municipality,
+      address.state_district,
+      address.county,
+    ])
+    if (!matchedRegency) return { level: 'province' as const }
+    setRegency(matchedRegency)
+
+    setLoadD(true)
+    const districtList = await fetchWilayah(`districts/${matchedRegency.code}`)
+    setDistricts(districtList)
+    setLoadD(false)
+    const matchedDistrict = matchRegion(districtList, administrative?.district?.code, [
+      administrative?.district?.name,
+      address.city_district,
+      address.district,
+      address.suburb,
+    ])
+    if (!matchedDistrict) return { level: 'regency' as const }
+    setDistrict(matchedDistrict)
+
+    setLoadV(true)
+    const villageList = await fetchWilayah(`villages/${matchedDistrict.code}`)
+    setVillages(villageList)
+    setLoadV(false)
+    const matchedVillage = matchRegion(villageList, administrative?.village?.code, [
+      administrative?.village?.name,
+      address.village,
+      address.neighbourhood,
+      address.quarter,
+      address.hamlet,
+      address.suburb,
+    ])
+    setVillage(matchedVillage)
+
+    return { level: matchedVillage ? 'village' as const : 'district' as const }
+  }
+
+  async function detectAddress(latitude: number, longitude: number, showFeedback = true) {
+    const geocoded = await reverseGeocode(latitude, longitude)
+    const result = await applyGeocodedAddress(geocoded)
+
+    if (!showFeedback) return
+
+    if (result.level === 'village') {
+      toast.success('Lokasi lengkap berhasil dideteksi', {
+        description: 'Provinsi, kota, kecamatan, dan kelurahan sudah terisi. Periksa kembali titik pin.',
+      })
+    } else if (result.level === 'district') {
+      toast.success('Kecamatan berhasil dideteksi', {
+        description: 'Kelurahan belum cocok otomatis. Silakan pilih kelurahan secara manual.',
+      })
+    } else {
+      toast.warning('Sebagian wilayah belum terdeteksi', {
+        description: 'Titik GPS tersimpan. Lengkapi pilihan wilayah yang masih kosong.',
+      })
+    }
+  }
+
   // ─── Auto-detect (OSM Nominatim) ─────────────────────────
   async function autoDetect() {
-    if (!navigator.geolocation) { toast.error('Browser tidak support geolocation'); return }
+    if (!navigator.geolocation) {
+      toast.error('Browser tidak mendukung deteksi lokasi.')
+      return
+    }
     setDetecting(true)
     navigator.geolocation.getCurrentPosition(
       async pos => {
         const { latitude: lt, longitude: lg } = pos.coords
         setLat(lt); setLng(lg); setShowMap(true)
         try {
-          const geo  = await reverseGeocode(lt, lg)
-          const addr = geo?.address ?? {}
-
-          // Auto-fill street & postal code dari Nominatim
-          const road = [addr.road, addr.house_number].filter(Boolean).join(' ')
-          if (road && !street) setStreet(road)
-          if (addr.postcode)   setPostalCode(addr.postcode)
-
-          // Parse region dari Nominatim
-          const provQuery = addr.state ?? ''
-          const regQuery  = addr.city ?? addr.county ?? ''
-          const distQuery = addr.suburb ?? addr.village ?? addr.town ?? ''
-          const vilQuery  = addr.neighbourhood ?? addr.hamlet ?? ''
-
-          // Load & match province
-          let provs = provinces
-          if (!provs.length) {
-            setLoadP(true)
-            provs = await fetchWilayah('provinces')
-            setProvinces(provs)
-            setLoadP(false)
-          }
-          const matchedProv = matchRegion(provs, provQuery)
-          if (!matchedProv) { toast.warning('Provinsi tidak terdeteksi, pilih manual'); setDetecting(false); return }
-          setProvince(matchedProv)
-
-          // Load & match regency
-          setLoadR(true)
-          const regs = await fetchWilayah(`regencies/${matchedProv.code}`)
-          setRegencies(regs); setLoadR(false)
-          const matchedReg = matchRegion(regs, regQuery)
-          if (matchedReg) {
-            setRegency(matchedReg)
-            // Load & match district
-            setLoadD(true)
-            const dists = await fetchWilayah(`districts/${matchedReg.code}`)
-
-            setDistricts(dists); setLoadD(false)
-            const matchedDist = matchRegion(dists, distQuery)
-            if (matchedDist) {
-              setDistrict(matchedDist)
-              // Load & match village
-              setLoadV(true)
-              const vils = await fetchWilayah(`villages/${matchedDist.code}`)
-              setVillages(vils); setLoadV(false)
-              const matchedVil = matchRegion(vils, vilQuery)
-              if (matchedVil) setVillage(matchedVil)
-            }
-          }
-          toast.success('Lokasi terdeteksi! Periksa dan koreksi jika perlu.')
+          await detectAddress(lt, lg)
         } catch {
-          toast.warning('Lokasi terdeteksi, tapi gagal auto-fill. Isi manual.')
+          toast.warning('Titik GPS ditemukan, tetapi detail wilayah gagal dibaca.', {
+            description: 'Geser pin bila perlu lalu lengkapi wilayah secara manual.',
+          })
         } finally { setDetecting(false) }
       },
       err => {
         setDetecting(false)
-        if (err.code === 1) toast.error('Izin lokasi ditolak. Aktifkan di browser.')
-        else toast.error('Gagal deteksi lokasi.')
+        if (err.code === 1) {
+          toast.error('Izin lokasi ditolak', { description: 'Aktifkan izin lokasi untuk situs ini melalui pengaturan browser.' })
+        } else {
+          toast.error('Lokasi saat ini tidak dapat dideteksi.')
+        }
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 }
     )
   }
 
   // Pin drag callback dari MapPicker
-  const onMapMove = useCallback(async (newLat: number, newLng: number) => {
+  async function onMapMove(newLat: number, newLng: number) {
     setLat(newLat); setLng(newLng)
     try {
-      const geo  = await reverseGeocode(newLat, newLng)
-      const addr = geo?.address ?? {}
-      const road = [addr.road, addr.house_number].filter(Boolean).join(' ')
-      if (road) setStreet(road)
-      if (addr.postcode) setPostalCode(addr.postcode)
-    } catch {}
-  }, [])
+      await detectAddress(newLat, newLng, false)
+    } catch {
+      toast.warning('Titik pin diperbarui, tetapi detail alamat belum terbaca.')
+    }
+  }
 
   // ─── Save ─────────────────────────────────────────────────
   async function handleSave() {
@@ -309,8 +435,8 @@ export default function AddressForm({ onSelect, member }: Props) {
             <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
               <span>{addr.label==='Rumah'?'🏠':addr.label==='Kantor'?'🏢':'📍'}</span>
               <span style={{ fontSize:13, fontWeight:600, color:S.dark }}>{addr.label}</span>
-              {addr.is_default && <span style={{ fontSize:10, color:S.green, fontWeight:600 }}>✓ Default</span>}
-              {addr.latitude  && <span style={{ fontSize:10, color:S.navy }}>📌 GPS</span>}
+              {addr.is_default && <span style={{ fontSize:11, color:S.green, fontWeight:600 }}>✓ Default</span>}
+              {addr.latitude  && <span style={{ fontSize:11, color:S.navy }}>📌 GPS</span>}
             </div>
             <p style={{ fontSize:12, color:S.gray }}>{addr.address}</p>
             {addr.district_name && (
@@ -352,9 +478,22 @@ export default function AddressForm({ onSelect, member }: Props) {
             style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'10px 14px', border:`1.5px solid ${detecting?S.gray:S.navy}`, borderRadius:10, background:detecting?S.grayL:'rgba(27,58,107,0.05)', color:detecting?S.gray:S.navy, fontSize:13, fontWeight:500, cursor:detecting?'not-allowed':'pointer', marginBottom:12, transition:'all 0.2s' }}>
             {detecting
               ? <><span className="animate-spin" style={{ display:'inline-block' }}>⟳</span> Mendeteksi lokasi...</>
-              : <><span>📍</span> Deteksi Lokasi Otomatis (OpenStreetMap)</>
+              : <><span>⌖</span> Gunakan Lokasi Saat Ini</>
             }
           </button>
+
+          {lat && district && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:12 }}>
+              <div style={{ padding:'8px 10px', borderRadius:9, background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.16)' }}>
+                <p style={{ fontSize:11, color:S.gray, marginBottom:2 }}>KECAMATAN</p>
+                <p style={{ fontSize:11, fontWeight:700, color:S.green }}>{district.name}</p>
+              </div>
+              <div style={{ padding:'8px 10px', borderRadius:9, background:village?'rgba(16,185,129,.07)':'rgba(232,160,32,.08)', border:`1px solid ${village?'rgba(16,185,129,.16)':'rgba(232,160,32,.2)'}` }}>
+                <p style={{ fontSize:11, color:S.gray, marginBottom:2 }}>KELURAHAN / DESA</p>
+                <p style={{ fontSize:11, fontWeight:700, color:village?S.green:'#92600A' }}>{village?.name ?? 'Pilih manual'}</p>
+              </div>
+            </div>
+          )}
 
           {/* Leaflet Map Preview */}
           {showMap && lat && lng && (

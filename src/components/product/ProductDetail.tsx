@@ -1,10 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { formatRupiah, storageUrl, stripHtml } from '@/lib/utils'
+import { useCartStore } from '@/stores/cart.store'
+import type { Product } from '@/types'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useCartStore } from '@/stores/cart.store'
-import { formatRupiah, storageUrl, stripHtml } from '@/lib/utils'
-import type { Product } from '@/types'
+import { useState } from 'react'
 
 const S = {
   red:'#C41E3A', redD:'#9B1530', navy:'#1B3A6B',
@@ -21,17 +21,26 @@ export default function ProductDetail({ product }: { product: Product }) {
   const [qty, setQty]       = useState(1)
   const [activeImg, setImg] = useState(0)
 
-  const cartItem          = useCartStore(s => s.items.find(i => i.id === product.id))
+
   const updateQty         = useCartStore(s => s.updateQty)
   const setPendingProduct = useCartStore(s => s.setPendingProduct)
-  const branchId          = useCartStore(s => s.branchId)
   const addItem           = useCartStore(s => s.addItem)
 
   const images = product.images?.length ? product.images : [product.primary_image].filter(Boolean)
 
+  const totalInCart = useCartStore(s =>
+    s.items
+      .filter(i => i.id === String(product.id))
+      .reduce((sum, i) => sum + i.qty, 0)
+  )
+
   function handleAdd() {
-    if (!branchId) setPendingProduct(product)
-    else addItem(product, cartItem ? 1 : qty, branchId)
+    const currentBranch = useCartStore.getState().activeBranch
+    if (currentBranch) {
+      addItem(product, qty, currentBranch)
+    } else {
+      setPendingProduct(product)
+    }
   }
 
   return (
@@ -65,7 +74,12 @@ export default function ProductDetail({ product }: { product: Product }) {
           {/* Thumbnails */}
           <div style={{ display:'flex', gap:8 }}>
             {(images.length ? images : [null,null,null]).slice(0,3).map((img,i) => (
-              <button key={i} onClick={() => setImg(i)} style={{ flex:1, height:76, borderRadius:12, background:S.creamD, border:`2px solid ${activeImg===i ? S.red : 'transparent'}`, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', position:'relative', cursor:'pointer', transition:'border 0.2s' }}>
+              <button
+                key={i}
+                onClick={() => setImg(i)}
+                aria-label={`Tampilkan gambar ${i + 1} dari ${product.name}`}
+                aria-pressed={activeImg === i}
+                style={{ flex:1, height:76, borderRadius:12, background:S.creamD, border:`2px solid ${activeImg===i ? S.red : 'transparent'}`, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', position:'relative', cursor:'pointer', transition:'border 0.2s' }}>
                 {img?.image_path
                   ? <Image src={storageUrl(img.image_path)} alt="" fill style={{ objectFit:'cover' }} unoptimized/>
                   : <span style={{ fontSize:26 }}>🍜</span>
@@ -81,7 +95,7 @@ export default function ProductDetail({ product }: { product: Product }) {
             <span className="c-tag c-tag-navy">{product.category?.name ?? 'Produk'}</span>
           </div>
 
-          <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'clamp(30px,4vw,38px)', fontWeight:700, color:S.navy, lineHeight:1.2, marginBottom:10 }}>
+          <h1 style={{ fontFamily:"var(--font-display), Georgia, serif", fontSize:'clamp(30px,4vw,38px)', fontWeight:700, color:S.navy, lineHeight:1.2, marginBottom:10 }}>
             {product.name}
           </h1>
 
@@ -92,7 +106,7 @@ export default function ProductDetail({ product }: { product: Product }) {
           </div>
 
           <div style={{ marginBottom:16 }}>
-            <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:34, fontWeight:700, color:S.red }}>
+            <span style={{ fontFamily:"var(--font-display), Georgia, serif", fontSize:34, fontWeight:700, color:S.red }}>
               {formatRupiah(Number(product.price))}
             </span>
             <span style={{ fontSize:14, color:S.gray, marginLeft:8 }}>per porsi</span>
@@ -121,29 +135,19 @@ export default function ProductDetail({ product }: { product: Product }) {
           {/* Qty selector */}
           <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:20 }}>
             <span style={{ fontSize:13, color:S.gray, fontWeight:500 }}>Jumlah:</span>
-            {cartItem ? (
-              <div style={{ display:'flex', alignItems:'center', gap:10, background:'rgba(196,30,58,0.08)', border:'1.5px solid rgba(196,30,58,0.2)', borderRadius:10, padding:'8px 16px' }}>
-                <button onClick={() => updateQty(product.id, cartItem.qty-1)} style={{ background:'none', border:'none', color:S.red, fontSize:18, fontWeight:700, cursor:'pointer', width:24 }}>−</button>
-                <span style={{ fontWeight:700, color:S.red, minWidth:24, textAlign:'center', fontSize:16 }}>{cartItem.qty}</span>
-                <button onClick={() => updateQty(product.id, cartItem.qty+1)} style={{ background:'none', border:'none', color:S.red, fontSize:18, fontWeight:700, cursor:'pointer', width:24 }}>+</button>
-              </div>
-            ) : (
-              <div style={{ display:'flex', alignItems:'center', gap:10, border:`1.5px solid ${S.creamDp}`, borderRadius:10, padding:'8px 16px' }}>
-                <button onClick={() => setQty(q => Math.max(1,q-1))} style={{ background:'none', border:'none', color:S.navy, fontSize:18, cursor:'pointer', width:24 }}>−</button>
-                <span style={{ fontWeight:600, minWidth:24, textAlign:'center' }}>{qty}</span>
-                <button onClick={() => setQty(q => q+1)} style={{ background:'none', border:'none', color:S.navy, fontSize:18, cursor:'pointer', width:24 }}>+</button>
-              </div>
-            )}
-            {!cartItem && (
-              <span style={{ fontSize:13, color:S.gray }}>
-                = <strong style={{ color:S.red }}>{formatRupiah(Number(product.price)*qty)}</strong>
-              </span>
-            )}
+            <div style={{ display:'flex', alignItems:'center', gap:10, border:`1.5px solid ${S.creamDp}`, borderRadius:10, padding:'8px 16px' }}>
+              <button aria-label="Kurangi jumlah" onClick={() => setQty(q => Math.max(1,q-1))} style={{ background:'none', border:'none', color:S.navy, fontSize:18, cursor:'pointer', width:24 }}>−</button>
+              <span style={{ fontWeight:600, minWidth:24, textAlign:'center' }}>{qty}</span>
+              <button aria-label="Tambah jumlah" onClick={() => setQty(q => q+1)} style={{ background:'none', border:'none', color:S.navy, fontSize:18, cursor:'pointer', width:24 }}>+</button>
+            </div>
+            <span style={{ fontSize:13, color:S.gray }}>
+              = <strong style={{ color:S.red }}>{formatRupiah(Number(product.price)*qty)}</strong>
+            </span>
           </div>
 
           {/* Add button */}
-          <button onClick={handleAdd} className={`c-btn c-btn-lg c-btn-full ${cartItem ? 'c-btn-success' : 'c-btn-primary'}`} style={{ marginBottom:12 }}>
-            {cartItem ? '✓ Sudah di Keranjang — Tambah Lagi' : '🛒  Tambah ke Keranjang'}
+          <button onClick={handleAdd} className={`c-btn c-btn-lg c-btn-full ${totalInCart > 0 ? 'c-btn-success' : 'c-btn-primary'}`} style={{ marginBottom:12 }}>
+            {totalInCart > 0 ? `✓ ${totalInCart} di Keranjang — Tambah Lagi` : '🛒  Tambah ke Keranjang'}
           </button>
 
           {/* Trust badges */}
@@ -151,7 +155,7 @@ export default function ProductDetail({ product }: { product: Product }) {
             {[['🚚','Kirim Cepat'],['🔒','Bayar Aman'],['✅','Segar Terjamin']].map(([ic,t]) => (
               <div key={t} style={{ textAlign:'center', background:S.grayL, borderRadius:10, padding:'12px 6px' }}>
                 <div style={{ fontSize:20, marginBottom:5 }}>{ic}</div>
-                <div style={{ fontSize:10, color:S.gray, fontWeight:500 }}>{t}</div>
+                <div style={{ fontSize:11, color:S.gray, fontWeight:500 }}>{t}</div>
               </div>
             ))}
           </div>

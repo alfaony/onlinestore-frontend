@@ -37,8 +37,8 @@ export function stripHtml(html: string): string {
 
 export function toArray<T>(val: unknown): T[] {
   if (Array.isArray(val)) return val as T[]
-  if (val && typeof val === 'object' && Array.isArray((val as any).data)) {
-    return (val as any).data as T[]
+  if (val && typeof val === 'object' && 'data' in val && Array.isArray(val.data)) {
+    return val.data as T[]
   }
   return []
 }

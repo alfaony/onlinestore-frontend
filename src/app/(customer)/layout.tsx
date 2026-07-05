@@ -2,8 +2,8 @@ import CartProvider from '@/components/cart/CartProvider'
 import AnnouncementBar from '@/components/home/AnnouncementBar'
 import Footer from '@/components/home/Footer'
 import Navbar from '@/components/home/Navbar'
+import AppToaster from '@/components/ui/AppToaster'
 import Script from 'next/script'
-import { Toaster } from 'sonner'
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -21,7 +21,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       <Navbar />
       <main style={{ minHeight: '100vh' }}>{children}</main>
       <Footer />
-      <Toaster position="bottom-right" toastOptions={{ style: { fontFamily:"'Plus Jakarta Sans',sans-serif", borderRadius:12, fontSize:13 } }}/>
+      <AppToaster />
     </CartProvider>
   )
 }

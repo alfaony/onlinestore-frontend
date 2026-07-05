@@ -2,6 +2,8 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // Memungkinkan verifikasi build berjalan tanpa mengganggu server dev aktif.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   images: {
     unoptimized: true,
     remotePatterns: [

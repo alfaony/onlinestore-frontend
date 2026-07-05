@@ -4,97 +4,113 @@ import { useCartStore } from '@/stores/cart.store'
 import type { Product } from '@/types'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { ArrowRight, MapPin, Plus, ShoppingBag } from 'lucide-react'
 
-const S = { red: '#C41E3A', navy: '#1B3A6B', gold: '#E8A020', creamD: '#F5EDD9', creamDp: '#EDD9B8', gray: '#6B7280', dark: '#1A1A2E', grayL: '#F3F0EB' }
-
-function Stars({ r }: { r: number }) {
-  return <span style={{ color: S.gold, fontSize: 11, letterSpacing: 1 }}>{'★'.repeat(Math.floor(r))}{'☆'.repeat(5 - Math.floor(r))}</span>
-}
+const S = { red: '#C41E3A', creamD: '#F5EDD9', creamDp: '#EDD9B8', gray: '#6B7280', dark: '#1A1A2E' }
 
 export default function ProductCard({ product }: { product: Product }) {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
-
   const setPendingProduct = useCartStore(s => s.setPendingProduct)
+  const activeBranch = useCartStore(s => s.activeBranch)
+  const addItem           = useCartStore(s => s.addItem)
+  const hasHydrated       = useCartStore(s => s.hasHydrated)
 
-  // Cari semua item produk ini dari berbagai branch
+  const isAvailable =
+  !activeBranch ||
+  !product.branch_availability ||
+  product.branch_availability.length === 0 ||
+  product.branch_availability.includes(activeBranch.id)
+
+
   const totalInCart = useCartStore(s =>
     s.items
       .filter(i => i.id === String(product.id))
       .reduce((sum, i) => sum + i.qty, 0)
   )
 
-
   function handleAdd(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
-    // Selalu tampilkan modal branch — user bisa pilih cabang mana
-    console.log('Product ID:', product.id) // ← debug dulu
-    setPendingProduct(product)
+
+    const currentBranch = useCartStore.getState().activeBranch
+
+    if (!isAvailable) {
+      // ✅ Tidak tersedia → buka modal pilih branch lain
+      setPendingProduct(product)
+      return
+    }
+
+    if (currentBranch) {
+      addItem(product, 1, currentBranch)
+    } else {
+      setPendingProduct(product)
+    }
   }
 
   return (
-    <article className="c-card" style={{ cursor: 'pointer' }}>
+    <article className="c-card product-card">
 
       {product.popular && (
         <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}>
-          <span className="c-tag c-tag-gold">⭐ Terlaris</span>
+          <span className="c-tag c-tag-gold">Terlaris</span>
         </div>
       )}
 
       {/* Image */}
-      <Link href={`/menu/${product.slug}`} style={{ display: 'block' }}>
-        <div style={{ height: 168, background: `linear-gradient(145deg,${S.creamD},${S.creamDp})`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+      <Link href={`/menu/${product.slug}`} className="block overflow-hidden" aria-label={`Lihat ${product.name}`}>
+        <div className="product-card__media" style={{ background: `linear-gradient(145deg,${S.creamD},${S.creamDp})`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
           {product.primary_image?.image_path
-            ? <Image src={storageUrl(product.primary_image.image_path)} alt={product.name} fill style={{ objectFit: 'cover' }} unoptimized />
-            : <span style={{ fontSize: 64, filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))' }}>🍜</span>
+            ? <Image src={storageUrl(product.primary_image.image_path)} alt={product.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" style={{ objectFit: 'cover' }} unoptimized />
+            : <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/50 text-5xl shadow-sm">🍜</div>
           }
           {(product.shipping_discounts?.length ?? 0) > 0 && (
             <div style={{ position: 'absolute', bottom: 10, left: 10 }}>
-              <span className="c-tag c-tag-red">🏷️ Promo Ongkir</span>
+              <span className="c-tag c-tag-red">Promo Ongkir</span>
             </div>
           )}
         </div>
       </Link>
 
       {/* Content */}
-      <div style={{ padding: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+      <div className="product-card__body">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <span className="c-tag c-tag-navy">{product.category?.name ?? 'Produk'}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Stars r={4.8} />
-            <span style={{ fontSize: 10, color: S.gray }}>(120)</span>
-          </div>
+          <span className="flex items-center gap-1 text-[11px] font-medium text-sr-gray"><MapPin size={10} /> Siap dipesan</span>
         </div>
 
         <Link href={`/menu/${product.slug}`}>
-          <h3 className="line-clamp-1" style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 600, color: S.dark, marginBottom: 4, marginTop: 6, lineHeight: 1.3 }}>
+          <h3 className="line-clamp-1 transition-colors hover:text-sr-red" style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 21, fontWeight: 700, color: S.dark, marginBottom: 6, marginTop: 6, lineHeight: 1.3 }}>
             {product.name}
           </h3>
         </Link>
 
-        <p className="line-clamp-2" style={{ fontSize: 11, color: S.gray, marginBottom: 12, lineHeight: 1.6 }}>
+        <p className="line-clamp-2" style={{ fontSize: 12, color: S.gray, marginBottom: 18, lineHeight: 1.65 }}>
           {stripHtml(product.description ?? '')}
         </p>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* Price + Action */}
+        <div className="mt-auto flex items-end justify-between gap-3 border-t border-sr-navy/10 pt-4">
           <div>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 19, fontWeight: 700, color: S.red }}>
+            <div style={{ fontFamily:"var(--font-display), Georgia, serif", fontSize:22, lineHeight:1, fontWeight:700, color:S.red }}>
               {formatRupiah(Number(product.price))}
             </div>
-            <div style={{ fontSize: 10, color: S.gray }}>per porsi</div>
+            <div className="mt-1 text-[11px] text-sr-gray">per porsi</div>
           </div>
 
-          {/* Cart indicator atau tombol pesan */}
-          {mounted && totalInCart > 0 ? (
-            <button onClick={handleAdd} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(196,30,58,0.08)', border: '1px solid rgba(196,30,58,0.25)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>
-              <span style={{ fontSize: 12, color: S.red, fontWeight: 700 }}>{totalInCart} ×</span>
-              <span style={{ fontSize: 11, color: S.red }}>+ Cabang lain</span>
+          {hasHydrated && !isAvailable ? (
+            // ❌ Tidak tersedia di branch aktif
+            <button onClick={handleAdd}
+              style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2, background:'none', border:'none', cursor:'pointer', textAlign:'right' }}>
+              <span style={{ fontSize:11, color:S.red, fontWeight:600 }}>Tidak tersedia di sini</span>
+              <span className="flex items-center gap-1 text-[11px] font-bold text-sr-navy">Ganti cabang <ArrowRight size={12} /></span>
+            </button>
+          ) : hasHydrated && totalInCart > 0 ? (
+            <button onClick={handleAdd} aria-label={`Tambah ${product.name}`} style={{ display:'flex', minHeight:38, alignItems:'center', gap:6, background:'rgba(196,30,58,0.08)', border:'1px solid rgba(196,30,58,0.25)', borderRadius:10, padding:'6px 10px', cursor:'pointer' }}>
+              <span style={{ fontSize:12, color:S.red, fontWeight:700 }}>{totalInCart} ×</span>
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-sr-red"><Plus size={12} /> Tambah</span>
             </button>
           ) : (
-            <button onClick={handleAdd} className="c-btn c-btn-primary c-btn-sm">
-              + Pesan
+            <button onClick={handleAdd} aria-label={`Pesan ${product.name}`} className="c-btn c-btn-primary c-btn-sm">
+              <ShoppingBag size={14} /> Pesan
             </button>
           )}
         </div>

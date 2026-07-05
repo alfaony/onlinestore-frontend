@@ -18,19 +18,20 @@ export default async function ArtikelPage() {
     try { articles = (await api.get('/articles?per_page=9')).data.data ?? [] } catch { }
 
     return (
-        <div className="c-app py-11 md:py-1">
+        <div className="c-app section-pad">
             {/* Header */}
-            <div className="mb-10">
-                <div className="text-gold text-[10px] font-bold tracking-[3px] mb-1.5 uppercase">
+            <div className="mb-12 max-w-2xl">
+                <div className="section-eyebrow mb-3">
                     Blog &amp; Artikel
                 </div>
-                <h1 className="font-display text-4xl md:text-[48px] font-bold text-navy">
+                <h1 className="section-title">
                     Cerita Palembang
                 </h1>
+                <p className="section-copy mt-4">Cerita kuliner, resep, dan budaya yang membuat Palembang selalu istimewa.</p>
             </div>
 
             {articles.length === 0 ? (
-                <div className="text-center py-16 text-gray-brand">
+                <div className="py-16 text-center text-sr-gray">
                     <div className="text-5xl mb-4">📰</div>
                     <p className="text-sm">Belum ada artikel tersedia.</p>
                 </div>
@@ -41,10 +42,10 @@ export default async function ArtikelPage() {
                         <Link
                             key={a.id}
                             href={`/artikel/${a.slug}`}
-                            className={`card block ${i === 0 ? 'md:col-span-2' : ''}`}
+                            className={`c-card block ${i === 0 ? 'md:col-span-2' : ''}`}
                         >
                             {/* Image */}
-                            <div className={`bg-gradient-to-br from-navy to-navy-light relative overflow-hidden
+                            <div className={`relative overflow-hidden bg-gradient-to-br from-sr-navy to-sr-navy-l
                                 ${i === 0 ? 'h-48 md:h-[220px]' : 'h-[160px]'}`}>
                                 {a.image
                                     ? <Image src={storageUrl(a.image)} alt={a.title} fill className="object-cover" unoptimized />
@@ -65,7 +66,7 @@ export default async function ArtikelPage() {
                                 <p className="text-[11px] text-gray-400 mb-1.5">
                                     📅 {formatDate(a.published_at)}
                                 </p>
-                                <h2 className={`font-display font-bold text-navy leading-snug mb-2
+                                <h2 className={`font-display mb-2 font-bold leading-snug text-sr-navy
                                     ${i === 0 ? 'text-xl md:text-[26px]' : 'text-[20px]'}`}>
                                     {a.title}
                                 </h2>
@@ -74,7 +75,7 @@ export default async function ArtikelPage() {
                                         {a.meta_description}
                                     </p>
                                 )}
-                                <span className="text-primary text-xs font-semibold">
+                                <span className="text-xs font-bold text-sr-red">
                                     Baca Selengkapnya →
                                 </span>
                             </div>

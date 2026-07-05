@@ -1,9 +1,10 @@
 import { formatRupiah } from '@/lib/utils'
+import type { CartItem } from '@/stores/cart.store'
 
 const S = { red:'#C41E3A', navy:'#1B3A6B', creamDp:'#EDD9B8', gray:'#6B7280', grayM:'#E5E2DC', dark:'#1A1A2E', green:'#10B981', creamD:'#F5EDD9' }
 
 interface Props {
-  items: any[]
+  items: Array<Pick<CartItem, 'id' | 'name' | 'qty' | 'price'>>
   subtotal: number
   shippingCost: number
   shippingDiscount: number
@@ -14,7 +15,7 @@ interface Props {
 export default function OrderSummary({ items, subtotal, shippingCost, shippingDiscount, voucherDiscount, total }: Props) {
   return (
     <div style={{ width:'100%', maxWidth:300, background:'#fff', borderRadius:16, padding:22, border:`1px solid ${S.creamDp}`, position:'sticky', top:80, alignSelf:'start', flexShrink:0 }}>
-      <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:21, color:S.navy, marginBottom:16 }}>Ringkasan</h3>
+      <h3 style={{ fontFamily:"var(--font-display), Georgia, serif", fontSize:21, color:S.navy, marginBottom:16 }}>Ringkasan</h3>
 
       {/* Items list */}
       <div style={{ maxHeight:180, overflowY:'auto', marginBottom:14 }}>
@@ -49,7 +50,7 @@ export default function OrderSummary({ items, subtotal, shippingCost, shippingDi
         )}
         <div style={{ display:'flex', justifyContent:'space-between', paddingTop:10, borderTop:`1.5px solid ${S.creamDp}` }}>
           <span style={{ fontWeight:600, fontSize:14, color:S.dark }}>Total Bayar</span>
-          <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:S.red }}>
+          <span style={{ fontFamily:"var(--font-display), Georgia, serif", fontSize:22, fontWeight:700, color:S.red }}>
             {formatRupiah(total)}
           </span>
         </div>

@@ -4,49 +4,40 @@ import { formatRupiah } from '@/lib/utils'
 import { useCartCount, useCartStore, useCartTotal } from '@/stores/cart.store'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { Menu, ShoppingBag, X } from 'lucide-react'
 
 const LINKS = [['/', 'Beranda'], ['/menu', 'Menu'], ['/artikel', 'Artikel']] as const
 
 export default function Navbar() {
   const pathname = usePathname()
-  const [mounted, setMounted] = useState(false)
   const [mobileOpen, setMobile] = useState(false)
 
-const cartCount   = useCartCount()
-const cartTotal   = useCartTotal()
-const setCartOpen = useCartStore(s => s.setCartOpen)
-  useEffect(() => setMounted(true), [])
+  const cartCount   = useCartCount()
+  const cartTotal   = useCartTotal()
+  const setCartOpen = useCartStore(s => s.setCartOpen)
+  const hasHydrated = useCartStore(s => s.hasHydrated)
 
-  const hasCart = mounted && cartCount > 0
+  const hasCart = hasHydrated && cartCount > 0
 
   return (
-    <nav style={{
-      position: 'sticky', top: 0, zIndex: 50,
-      background: 'rgba(253,248,242,0.97)',
-      backdropFilter: 'blur(14px)',
-      borderBottom: '1px solid #EDD9B8',
-    }}>
-      <div className="c-app c-app h-16 flex items-center justify-between">
+    <nav aria-label="Navigasi utama" className="sticky top-0 z-50 border-b border-sr-navy/10 bg-sr-cream/95 shadow-[0_4px_20px_rgba(27,58,107,0.04)] backdrop-blur-xl">
+      <div className="c-app flex h-16 items-center justify-between gap-3 md:h-[72px]">
 
         {/* Logo */}
-        <Link href="/"><Logo size={26} /></Link>
+        <Link href="/" aria-label="Seraso Palembang - Beranda"><Logo size={28} /></Link>
 
         {/* Desktop pill tabs */}
-        <div style={{
-          display: 'flex', gap: 4,
-          background: '#F3F0EB',
-          borderRadius: 10, padding: 4,
-        }} className="hidden md:flex">
+        <div className="hidden items-center gap-1 rounded-xl bg-sr-navy/[0.06] p-1 md:flex">
           {LINKS.map(([href, label]) => {
             const active = pathname === href || (href !== '/' && pathname.startsWith(href))
             return (
-              <Link className="font-display" key={href} href={href} style={{
+              <Link key={href} href={href} aria-current={active ? 'page' : undefined} style={{
                 fontSize: 13,
-                fontWeight: active ? 600 : 400,
+                fontWeight: active ? 700 : 500,
                 color: active ? '#C41E3A' : '#6B7280',
-                padding: '7px 16px',
-                borderRadius: 7,
+                padding: '8px 17px',
+                borderRadius: 9,
                 background: active ? '#fff' : 'transparent',
                 boxShadow: active ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
                 transition: 'all 0.2s',
@@ -58,21 +49,13 @@ const setCartOpen = useCartStore(s => s.setCartOpen)
         </div>
 
         {/* Right side */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="flex shrink-0 items-center gap-2">
           {/* Cart — desktop */}
           <button
             onClick={() => setCartOpen(true)}
-            className={`hidden md:flex ${hasCart ? 'animate-cart-pulse' : ''}`}
-            style={{
-              background: hasCart ? '#C41E3A' : '#1B3A6B',
-              border: 'none', borderRadius: 10,
-              padding: '10px 18px', color: '#fff',
-              fontSize: 13, fontWeight: 500,
-              display: 'flex', alignItems: 'center', gap: 8,
-              position: 'relative', transition: 'background 0.3s',
-              cursor: 'pointer',
-            }}>
-            🛍️
+            aria-label={hasCart ? `Buka keranjang, ${cartCount} item` : 'Buka keranjang'}
+            className={`relative hidden min-h-11 items-center gap-2 rounded-xl border-0 px-4 text-[13px] font-semibold text-white transition-colors md:flex ${hasCart ? 'animate-cart-pulse bg-sr-red' : 'bg-sr-navy hover:bg-sr-navy-l'}`}>
+            <ShoppingBag size={17} aria-hidden="true" />
             <span>{hasCart ? formatRupiah(cartTotal) : 'Keranjang'}</span>
             {hasCart && (
               <span style={{
@@ -86,10 +69,9 @@ const setCartOpen = useCartStore(s => s.setCartOpen)
           </button>
 
           {/* Cart icon — mobile */}
-          <button onClick={() => setCartOpen(true)}
-            className="flex md:hidden"
-            style={{ background: 'none', border: 'none', padding: 8, position: 'relative', cursor: 'pointer' }}>
-            🛍️
+          <button onClick={() => setCartOpen(true)} aria-label={hasCart ? `Buka keranjang, ${cartCount} item` : 'Buka keranjang'}
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-sr-navy/[0.06] text-sr-navy md:hidden">
+            <ShoppingBag size={19} aria-hidden="true" />
             {hasCart && (
               <span style={{
                 position: 'absolute', top: 2, right: 2,
@@ -101,26 +83,25 @@ const setCartOpen = useCartStore(s => s.setCartOpen)
           </button>
 
           {/* Burger */}
-          <button onClick={() => setMobile(v => !v)}
-            className="flex md:hidden"
-            style={{ background: 'none', border: 'none', padding: 8, fontSize: 20, cursor: 'pointer', color: '#1B3A6B' }}>
-            {mobileOpen ? '✕' : '☰'}
+          <button onClick={() => setMobile(v => !v)} aria-label={mobileOpen ? 'Tutup menu' : 'Buka menu'} aria-expanded={mobileOpen} aria-controls="mobile-navigation"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-sr-navy/[0.06] text-sr-navy md:hidden">
+            {mobileOpen ? <X size={19} /> : <Menu size={19} />}
           </button>
         </div>
       </div>
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="animate-fade-up" style={{
+        <div id="mobile-navigation" className="animate-fade-up" style={{
           borderTop: '1px solid #EDD9B8',
           background: '#FDF8F2',
-          padding: '12px 1rem',
+          padding: '10px 1.25rem 16px',
         }}>
           {LINKS.map(([href, label]) => {
             const active = pathname === href
             return (
               <Link key={href} href={href} onClick={() => setMobile(false)} style={{
-                display: 'block', padding: '10px 12px',
+                display: 'block', padding: '12px 14px',
                 fontSize: 14, fontWeight: 500,
                 color: active ? '#C41E3A' : '#6B7280',
                 borderRadius: 8,

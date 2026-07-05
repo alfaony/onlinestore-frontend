@@ -6,7 +6,6 @@ import BranchSection from '@/components/home/BranchSection'
 import CTASection from '@/components/home/CTASection'
 import LatestArticles from '@/components/home/LatestArticles'
 import api from '@/lib/api'
-import Navbar from '@/components/layout/Navbar'
 
 export const revalidate = 3600
 

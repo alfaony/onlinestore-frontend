@@ -14,10 +14,20 @@ export default function CartProvider({ children }: { children: React.ReactNode }
   const setCartOpen = useCartStore(s => s.setCartOpen)
   const pendingProduct = useCartStore(s => s.pendingProduct)
   const setPendingProduct = useCartStore(s => s.setPendingProduct)
-  const addItem = useCartStore(s => s.addItem)
 
   useEffect(() => {
-    useCartStore.persist.rehydrate()
+    let active = true
+
+    async function hydrateCart() {
+      try {
+        await useCartStore.persist.rehydrate()
+      } finally {
+        if (active) useCartStore.getState().setHasHydrated(true)
+      }
+    }
+
+    void hydrateCart()
+    return () => { active = false }
   }, [])
 
   return (
@@ -27,7 +37,6 @@ export default function CartProvider({ children }: { children: React.ReactNode }
       {pendingProduct && (
         <BranchSelectorModal
           product={pendingProduct}
-          onSelect={branch => addItem(pendingProduct, 1, branch)}
           onClose={() => setPendingProduct(null)}
         />
       )}

@@ -7,22 +7,23 @@ import {
   useCartTotal,
 } from '@/stores/cart.store'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
 
-const LINKS = [['/', 'Beranda'], ['/menu', 'Menu'], ['/artikel', 'Artikel']] as const
+const LINKS = [['/', 'Beranda'], ['/menu', 'Menu'], ['/artikel', 'Artikel'], ['/order', 'Pesanan Saya']] as const
+
 
 export default function Navbar() {
+  const router = useRouter()  // ← tambah ini
   const pathname = usePathname()
-  const [mounted, setMounted] = useState(false)
   const [mobileOpen, setMobile] = useState(false)
+  const activeBranch = useCartStore(s => s.activeBranch)
+  const hasHydrated = useCartStore(s => s.hasHydrated)
 
   const cartCount   = useCartCount()
   const cartTotal   = useCartTotal()
   const setCartOpen = useCartStore(s => s.setCartOpen)
-  useEffect(() => setMounted(true), [])
-
-  const hasCart = mounted && cartCount > 0
+  const hasCart = hasHydrated && cartCount > 0
 
   return (
     <nav className='sticky top-0 z-50 bg-sr-cream/95 backdrop-blur-md border-b border-sr-cream-dp'>
@@ -30,6 +31,22 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link href="/"><Logo size={26} /></Link>
+
+        {hasHydrated && activeBranch && (
+        <div style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px', background:'rgba(27,58,107,0.08)', borderRadius:8, fontSize:11 }}>
+          <span>📍</span>
+          <span style={{ color:'#1B3A6B', fontWeight:500 }}>{activeBranch.name}</span>
+          <button
+            onClick={() => {
+              useCartStore.getState().setActiveBranch(null)
+              router.push('/menu')
+            }}
+            style={{ background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:12, lineHeight:1 }}>
+            ×
+          </button>
+        </div>
+      )}
+
 
         {/* Desktop pill tabs */}
         <div className="hidden md:flex items-center gap-1 bg-sr-gray-l rounded-xl p-1">

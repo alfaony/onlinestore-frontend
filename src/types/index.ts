@@ -12,6 +12,7 @@ export interface Product {
     shipping_discounts: ShippingDiscount[]
     popular: boolean
     stock: number;
+    branch_availability?: string[]  // ← tambah kalau belum ada branch_availability
 }
 
 export interface Category {
@@ -70,6 +71,8 @@ export interface Order {
     status: OrderStatus
     payment_status: 'unpaid' | 'paid' | 'refunded'
     subtotal: number
+    fulfilled_subtotal: number
+    cancelled_subtotal: number
     shipping_cost: number
     shipping_discount: number
     voucher_discount: number
@@ -78,6 +81,29 @@ export interface Order {
     shipping: Shipping | null
     payment: Payment | null
     histories: OrderStatusHistory[]
+    refund_status: 'none' | 'requested' | 'processing' | 'completed' | 'partial' | 'full'
+    refund_type: 'partial' | 'full' | null
+    refund_request_number: string | null
+    refund_amount: number
+    refund_calculation: {
+        cancelled_items_gross: number
+        allocated_voucher_discount: number
+        shipping_refunded: boolean
+        shipping_amount: number
+        shipping_discount: number
+        final_refund: number
+    } | null
+    refund_reason: string | null
+    refund_bank_name: string | null
+    refund_account_number: string | null
+    refund_account_name: string | null
+    refund_transfer_reference: string | null
+    refund_proof_url: string | null
+    refund_proof_note: string | null
+    refund_requested_at: string | null
+    refund_processed_at: string | null
+    refund_completed_at: string | null
+    net_total: number
     created_at: string
 }
 
@@ -87,6 +113,8 @@ export interface OrderItem {
     price: number
     quantity: number
     subtotal: number
+    is_removed?: boolean
+    removed_reason?: string | null
 }
 
 export interface Shipping {
@@ -95,6 +123,9 @@ export interface Shipping {
     tracking_number: string | null
     estimated_days: number | null
     status: string
+    booking_reference?: string | null
+    booking_requested_at?: string | null
+    booking_confirmed_at?: string | null
 }
 
 export interface Payment {
@@ -102,6 +133,33 @@ export interface Payment {
     amount: number
     status: string
     paid_at: string | null
+}
+
+export interface PromotionSummary {
+    id: string
+    code: string | null
+    name: string
+    description: string | null
+    badge_text: string | null
+    scope: 'product' | 'delivery' | 'order'
+    delivery_scope: 'all' | 'instant' | 'non_instant'
+    application_mode: 'automatic' | 'code'
+    is_stackable: boolean
+    eligible: boolean
+    applied: boolean
+    reason: string | null
+    discount_amount: number
+}
+
+export interface PromotionPreview {
+    subtotal: number
+    shipping_charge: number
+    product_discount: number
+    shipping_discount: number
+    total_discount: number
+    grand_total: number
+    applied_promotions: PromotionSummary[]
+    available_promotions: PromotionSummary[]
 }
 
 export interface OrderStatusHistory {

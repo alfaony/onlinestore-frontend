@@ -1,16 +1,16 @@
 // src/stores/cart.store.ts
+import type { Product, ProductImage } from '@/types'
+import { toast } from 'sonner'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { useShallow } from 'zustand/react/shallow'
-import { toast } from 'sonner'
-import type { Product, Branch } from '@/types'
 
 export interface CartItem {
   id: string
   name: string
   slug: string
   price: number
-  primary_image?: any
+  primary_image?: ProductImage | null
   qty: number
   branchId: string
   branchName: string
@@ -26,11 +26,16 @@ export interface BranchGroup {
 interface CartStore {
   items: CartItem[]
   cartOpen: boolean
+  hasHydrated: boolean
   pendingProduct: Product | null
+  activeBranch: { id: string; name: string } | null
+
+  setActiveBranch: (b: { id: string; name: string } | null) => void
+  setHasHydrated: (v: boolean) => void
 
   setCartOpen: (open: boolean) => void
   setPendingProduct: (p: Product | null) => void
-  addItem: (product: Product, qty: number, branch: Branch) => void
+  addItem: (product: Product, qty: number, branch: { id: string; name: string }) => void
   removeItem: (productId: string, branchId: string) => void
   updateQty: (productId: string, branchId: string, qty: number) => void
   clearCart: () => void
@@ -46,6 +51,11 @@ export const useCartStore = create<CartStore>()(
       setCartOpen: (open) => set({ cartOpen: open }),
       setPendingProduct: (p) => set({ pendingProduct: p }),
 
+      activeBranch: null,
+      setActiveBranch: (b) => set({ activeBranch: b }),
+
+      hasHydrated: false,
+      setHasHydrated: (v) => set({ hasHydrated: v }),
       addItem: (product, qty, branch) => {
         const existing = get().items.find(
           i => i.id === String(product.id) && i.branchId === branch.id
@@ -95,7 +105,14 @@ export const useCartStore = create<CartStore>()(
 
       clearCart: () => set({ items: [] }),
     }),
-    { name: 'seraso-cart-v2' }
+    {
+      name: 'seraso-cart-v2',
+      skipHydration: true,
+      partialize: state => ({
+        items: state.items,
+        activeBranch: state.activeBranch,
+      }),
+    }
   )
 )
 

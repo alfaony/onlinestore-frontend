@@ -35,7 +35,7 @@ function SuccessContent() {
       </div>
 
       <h1 className="animate-fade-up-2" style={{
-        fontFamily:"'Cormorant Garamond',serif",
+        fontFamily:"var(--font-display), Georgia, serif",
         fontSize:'clamp(32px,5vw,42px)',
         fontWeight:700, color:S.navy, marginBottom:8,
       }}>

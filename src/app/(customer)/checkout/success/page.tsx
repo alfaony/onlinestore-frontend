@@ -21,7 +21,7 @@ function SuccessContent() {
       }}>✅</div>
 
       <h1 className="animate-fade-up-2" style={{
-        fontFamily:"'Cormorant Garamond',serif",
+        fontFamily:"var(--font-display), Georgia, serif",
         fontSize:'clamp(32px,5vw,42px)', fontWeight:700,
         color:S.navy, marginBottom:8,
       }}>
@@ -82,7 +82,7 @@ function SuccessContent() {
             🔍  Lacak Pesanan
           </Link>
         ) : (
-          <Link href="/order" className="c-btn c-btn-primary c-btn-lg c-btn-full">
+          <Link href={`/order?orders=${orderNumbers.join(',')}`} className="c-btn c-btn-primary c-btn-lg c-btn-full">
             🔍  Lihat Semua Pesanan
           </Link>
         )}

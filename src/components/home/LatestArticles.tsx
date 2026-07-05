@@ -43,40 +43,41 @@ export default async function LatestArticles() {
   const displayArticles = articles.length > 0 ? articles : DUMMY_ARTICLES
 
   return (
-    <section className="bg-sr-cream-d border-t-4 border-sr-gold py-14 md:py-16">
+    <section className="section-pad border-t border-sr-navy/10 bg-white/55">
       <div className="c-app">
-        <div className="flex items-end justify-between mb-8">
+        <div className="mb-10 flex items-end justify-between gap-6">
           <div>
-            <p className="text-sr-gold text-[10px] font-bold tracking-[3px] uppercase mb-1.5">Blog</p>
-            <h2 className="font-display text-[38px] font-bold text-sr-navy">
-              Artikel Terbaru
+            <p className="section-eyebrow mb-3">Cerita &amp; Inspirasi</p>
+            <h2 className="section-title">
+              Dari dapur Seraso
             </h2>
+            <p className="section-copy mt-3">Kenali cerita, budaya, dan rasa di balik kuliner Palembang.</p>
           </div>
           <Link href="/artikel" className="c-btn c-btn-outline c-btn-sm hidden sm:inline-flex">
             Semua Artikel →
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
           {displayArticles.map(a => (
             <Link key={a.id} href={`/artikel/${a.slug}`} className="c-card block">
-              <div className="h-44 bg-gradient-to-br from-sr-navy to-sr-navy-l flex items-center justify-center relative overflow-hidden">
+              <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-gradient-to-br from-sr-navy to-sr-navy-l">
                 {a.image
-                  ? <Image src={storageUrl(a.image)} alt={a.title} fill style={{ objectFit: 'cover' }} unoptimized />
-                  : <span className="text-5xl">📰</span>
+                  ? <Image src={storageUrl(a.image)} alt={a.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" style={{ objectFit: 'cover' }} unoptimized />
+                  : <span className="font-display text-2xl font-bold text-white/55">SERASO</span>
                 }
               </div>
-              <div className="p-4">
-                <p className="text-[11px] text-sr-gray mb-1.5">📅 {formatDate(a.published_at)}</p>
-                <h3 className="font-display text-[18px] font-bold text-sr-navy leading-snug mb-2 line-clamp-2">
+              <div className="p-5">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-sr-gray">{formatDate(a.published_at)}</p>
+                <h3 className="font-display mb-2 line-clamp-2 text-[21px] font-bold leading-snug text-sr-navy">
                   {a.title}
                 </h3>
                 {a.meta_description && (
-                  <p className="text-[11px] text-sr-gray mb-3 line-clamp-2 leading-relaxed">
+                  <p className="mb-4 line-clamp-2 text-xs leading-5 text-sr-gray">
                     {a.meta_description}
                   </p>
                 )}
-                <span className="text-sr-red text-xs font-semibold">Baca Selengkapnya →</span>
+                <span className="text-xs font-bold text-sr-red">Baca selengkapnya →</span>
               </div>
             </Link>
           ))}
