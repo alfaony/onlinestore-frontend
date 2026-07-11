@@ -36,7 +36,9 @@ export default function VoucherInput({ preview, promoCode, loading, onApplyCode,
     if (success) setCode(normalized)
   }
 
-  const offers = preview?.available_promotions.filter(promo => !promo.applied) ?? []
+  const offers = preview?.available_promotions.filter(
+    promo => promo.eligible && !promo.applied
+  ) ?? []
 
   function remove() {
     setCode('')
@@ -88,7 +90,7 @@ export default function VoucherInput({ preview, promoCode, loading, onApplyCode,
 
       {offers.length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: S.dark, marginBottom: 7 }}>Penawaran yang bisa kamu kejar</p>
+          <p style={{ fontSize: 11, fontWeight: 700, color: S.dark, marginBottom: 7 }}>Promo tersedia</p>
           <div style={{ display: 'grid', gap: 7 }}>
             {offers.map(promo => (
               <div key={promo.id} style={{ border: `1px solid ${S.creamDp}`, background: S.creamD, borderRadius: 10, padding: '10px 12px' }}>

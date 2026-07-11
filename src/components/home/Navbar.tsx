@@ -2,10 +2,11 @@
 import Logo from '@/components/ui/Logo'
 import { formatRupiah } from '@/lib/utils'
 import { useCartCount, useCartStore, useCartTotal } from '@/stores/cart.store'
+import { useMemberStore } from '@/stores/member.store'
+import { Menu, ShoppingBag, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
-import { Menu, ShoppingBag, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 const LINKS = [['/', 'Beranda'], ['/menu', 'Menu'], ['/artikel', 'Artikel']] as const
 
@@ -17,6 +18,9 @@ export default function Navbar() {
   const cartTotal   = useCartTotal()
   const setCartOpen = useCartStore(s => s.setCartOpen)
   const hasHydrated = useCartStore(s => s.hasHydrated)
+  const member = useMemberStore(s => s.member)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   const hasCart = hasHydrated && cartCount > 0
 
@@ -25,7 +29,7 @@ export default function Navbar() {
       <div className="c-app flex h-16 items-center justify-between gap-3 md:h-[72px]">
 
         {/* Logo */}
-        <Link href="/" aria-label="Seraso Palembang - Beranda"><Logo size={28} /></Link>
+        <Link href="/" aria-label="Seraso Palembang - Beranda"><Logo height={52} variant="header" /></Link>
 
         {/* Desktop pill tabs */}
         <div className="hidden items-center gap-1 rounded-xl bg-sr-navy/[0.06] p-1 md:flex">
@@ -50,6 +54,27 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="flex shrink-0 items-center gap-2">
+          {mounted && (
+            member ? (
+              <Link href="/account/profile" style={{
+                display:'flex', alignItems:'center', gap:6,
+                padding:'6px 12px', background:'rgba(27,58,107,0.06)',
+                borderRadius:8, fontSize:12, color:'#1B3A6B',
+                fontWeight:500, textDecoration:'none',
+              }}>
+                <span>👤</span>
+                <span className="hidden md:inline">{member.name ?? 'Akun'}</span>
+              </Link>
+            ) : (
+              <Link href="/account/login" style={{
+                fontSize:12, color:'#1B3A6B', fontWeight:600,
+                padding:'6px 12px', background:'rgba(27,58,107,0.06)',
+                borderRadius:8, textDecoration:'none',
+              }}>
+                Masuk
+              </Link>
+            )
+          )}
           {/* Cart — desktop */}
           <button
             onClick={() => setCartOpen(true)}
@@ -87,6 +112,8 @@ export default function Navbar() {
             className="flex h-10 w-10 items-center justify-center rounded-xl border-0 bg-sr-navy/[0.06] text-sr-navy md:hidden">
             {mobileOpen ? <X size={19} /> : <Menu size={19} />}
           </button>
+
+          
         </div>
       </div>
 

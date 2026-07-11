@@ -15,10 +15,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { slug } = await params
     const product = await getProduct(slug)
     if (!product) return { title: 'Produk tidak ditemukan' }
+    const primaryImage = product.primary_image ?? product.images?.[0]
     return {
         title: product.name,
         description: product.description?.slice(0, 160),
-        openGraph: { title: `${product.name} | Seraso Palembang`, images: product.primary_image ? [{ url: product.primary_image.image_path }] : [] },
+        openGraph: { title: `${product.name} | Seraso Palembang`, images: primaryImage ? [{ url: primaryImage.image_url ?? primaryImage.image_path }] : [] },
     }
 }
 
@@ -26,11 +27,12 @@ export default async function ProductDetailPage({ params }: Props) {
     const { slug } = await params
     const product = await getProduct(slug)
     if (!product) notFound()
+    const primaryImage = product.primary_image ?? product.images?.[0]
 
     const jsonLd = {
         '@context': 'https://schema.org', '@type': 'Product',
         name: product.name, description: product.description,
-        image: product.primary_image?.image_path,
+        image: primaryImage?.image_url ?? primaryImage?.image_path,
         offers: { '@type': 'Offer', price: product.price, priceCurrency: 'IDR', availability: 'https://schema.org/InStock' },
     }
 

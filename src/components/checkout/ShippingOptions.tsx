@@ -1,7 +1,7 @@
 'use client'
 import api from '@/lib/api'
 import { formatRupiah } from '@/lib/utils'
-import type { CartItem } from '@/stores/cart.store'
+import { getPreparationMethods, type CartItem } from '@/stores/cart.store'
 import { useEffect, useRef, useState } from 'react'
 
 const S = {
@@ -30,10 +30,11 @@ interface Props {
   } | null
   branchId: string
   items: CartItem[]
-  onSelect: (r: Rate) => void
+  onSelect: (r: Rate | null) => void
 }
 
 const INSTANT_COURIERS = ['gosend', 'grab', 'lalamove', 'borzo', 'gojek']
+const MAX_REGULAR_DELIVERY_DAYS = 3
 
 function isInstantRate(rate: Rate): boolean {
   if (typeof rate.is_instant === 'boolean') return rate.is_instant
@@ -63,7 +64,8 @@ function getBestRate(rates: Rate[]): Rate {
 // ── Cache key helper ──────────────────────────────────────
 function buildCacheKey(branchId: string, postal: string, items: CartItem[]): string {
   const totalWeight = items.reduce((s, i) => s + 500 * i.qty, 0)
-  return `rates:${branchId}:${postal}:${totalWeight}`
+  const capabilities = items.map(item => `${item.id}:${getPreparationMethods(item).join(',')}`).join('|')
+  return `rates:v5:${branchId}:${postal}:${totalWeight}:${capabilities}`
 }
 
 // ── Session storage helpers ───────────────────────────────
@@ -89,7 +91,7 @@ function setCachedRates(key: string, rates: Rate[]) {
 function isEtdValid(etd: string): boolean {
   const parts = String(etd).split('-')
   const max = parseInt(parts[parts.length - 1]) || 99
-  return max <= 2
+  return max <= MAX_REGULAR_DELIVERY_DAYS
 }
 
 export default function ShippingOptions({ address, branchId, items, onSelect }: Props) {
@@ -97,12 +99,14 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
   const [selected, setSelected] = useState<Rate | null>(null)
   const [loading,  setLoading]  = useState(false)
   const [isMock,   setIsMock]   = useState(false)
+  const [rateMessage, setRateMessage] = useState<string | null>(null)
   const onSelectRef = useRef(onSelect)
   const itemsRef = useRef(items)
   const postalCode = address?.postal_code ?? null
   const latitude = address?.latitude ?? null
   const longitude = address?.longitude ?? null
-  const itemsKey = items.map(item => `${item.id}:${item.qty}`).join('|')
+  const itemsKey = items.map(item => `${item.id}:${item.qty}:${getPreparationMethods(item).join(',')}`).join('|')
+  const allSupportFrozen = items.every(item => getPreparationMethods(item).includes('frozen'))
 
   useEffect(() => {
     onSelectRef.current = onSelect
@@ -113,7 +117,10 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
   }, [items])
 
   useEffect(() => {
-    if (!postalCode || !branchId) return
+    if (!postalCode || !branchId) {
+      onSelectRef.current(null)
+      return
+    }
 
     let cancelled = false
     const destinationPostal = postalCode
@@ -138,6 +145,8 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
       setLoading(true)
       setRates([])
       setSelected(null)
+      setRateMessage(null)
+      onSelectRef.current(null)
 
       try {
         const { data } = await api.post('/shipping/rates', {
@@ -146,6 +155,7 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
           destination_lat: latitude,
           destination_lng: longitude,
           items: currentItems.map(item => ({
+            product_id: item.id,
             name: item.name,
             value: item.price,
             weight: 500,
@@ -154,9 +164,12 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
         })
 
         if (cancelled) return
-        const pricing: Rate[] = (data.pricing ?? []).filter((rate: Rate) => isEtdValid(rate.etd))
+        const pricing: Rate[] = (data.pricing ?? []).filter((rate: Rate) =>
+          isEtdValid(rate.etd) && (allSupportFrozen || isInstantRate(rate))
+        )
         setRates(pricing)
         setIsMock(data.is_mock ?? false)
+        setRateMessage(data.message ?? null)
 
         if (pricing.length > 0) {
           if (!data.is_mock) setCachedRates(cacheKey, pricing)
@@ -169,6 +182,8 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
         setRates([])
         setIsMock(false)
         setSelected(null)
+        setRateMessage('Gagal mengambil pilihan kurir. Silakan coba lagi.')
+        onSelectRef.current(null)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -179,7 +194,7 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
     return () => {
       cancelled = true
     }
-  }, [branchId, itemsKey, latitude, longitude, postalCode])
+  }, [allSupportFrozen, branchId, itemsKey, latitude, longitude, postalCode])
 
   function handleSelect(rate: Rate) {
     setSelected(rate)
@@ -221,8 +236,16 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
 
       {!loading && rates.length === 0 && (
         <div style={{ padding:'12px 14px', background:'rgba(232,160,32,0.08)', border:'1px solid rgba(232,160,32,0.2)', borderRadius:10, fontSize:12, color:'#92600A' }}>
-          ⚠️ Kurir pengiriman cepat (≤2 hari) tidak tersedia untuk area ini.
-          <br/>Coba <strong>Ambil Sendiri (Pickup)</strong> atau pilih alamat lain.
+          ⚠️ {rateMessage ?? (allSupportFrozen
+            ? 'Kurir pengiriman tidak tersedia untuk area ini.'
+            : 'Produk ini tidak tersedia Frozen, sehingga hanya dapat dikirim instant.')}
+          <br/>Coba <strong>Ambil Sendiri (Pickup)</strong>, lengkapi titik lokasi, atau pilih alamat lain.
+        </div>
+      )}
+
+      {!loading && rates.length > 0 && !allSupportFrozen && (
+        <div style={{ padding:'9px 11px', marginBottom:8, background:'rgba(232,160,32,0.08)', borderRadius:9, fontSize:11, color:'#92600A' }}>
+          ⚡ Keranjang berisi produk tanpa opsi Frozen. Hanya kurir instant yang tersedia.
         </div>
       )}
 
@@ -282,7 +305,9 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
                   {instant && (
                     <>
                       <div style={{ fontSize:11, color:S.gold, fontWeight:700 }}>⚡ Instant</div>
-                      <div style={{ fontSize:11, color:S.green, fontWeight:600 }}>🍳 Gratis Masak</div>
+                      <div style={{ fontSize:11, color:rate.free_cooking ? S.green : S.gray, fontWeight:600 }}>
+                        {rate.free_cooking ? '🍳 Gratis Masak' : '❄️ Dikirim Frozen'}
+                      </div>
                     </>
                   )}
                   {!instant && rate === getBestRate(rates) && (

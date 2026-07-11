@@ -1,12 +1,12 @@
 'use client'
-import Link from 'next/link'
 import Logo from '@/components/ui/Logo'
+import Link from 'next/link'
 
 const NAV_LINKS = [['/', 'Beranda'], ['/menu', 'Produk'], ['/artikel', 'Artikel']] as const
 const CONTACTS = [
   ['📍', 'Palembang, Sumatera Selatan'],
-  ['📞', '0711-234-567'],
-  ['✉️', 'hello@seraso.id'],
+  ['📞', '+62821-3695-9786'],
+  ['✉️', 'serasopalembang@gmail.com'],
 ] as const
 const SOCIAL = ['📘', '📷', '🐦', '▶️'] as const
 
@@ -18,7 +18,7 @@ export default function Footer() {
 
           {/* Brand */}
           <div className="sm:col-span-2 lg:col-span-1">
-            <Logo size={28} />
+            <Logo height={76} variant="footer-dark" />
             <p className="text-xs text-white/45 leading-relaxed mt-3 max-w-[240px]">
               Makanan khas Palembang autentik dengan resep turun-temurun yang telah menemani keluarga Indonesia.
             </p>

@@ -1,5 +1,5 @@
 // src/stores/cart.store.ts
-import type { Product, ProductImage } from '@/types'
+import type { PreparationMethod, Product, ProductImage } from '@/types'
 import { toast } from 'sonner'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -14,6 +14,13 @@ export interface CartItem {
   qty: number
   branchId: string
   branchName: string
+  preparation_methods?: PreparationMethod[]
+}
+
+export const DEFAULT_PREPARATION_METHODS: PreparationMethod[] = ['frozen', 'kukus', 'goreng']
+
+export function getPreparationMethods(item: Pick<CartItem, 'preparation_methods'>): PreparationMethod[] {
+  return item.preparation_methods?.length ? item.preparation_methods : DEFAULT_PREPARATION_METHODS
 }
 
 export interface BranchGroup {
@@ -57,6 +64,17 @@ export const useCartStore = create<CartStore>()(
       hasHydrated: false,
       setHasHydrated: (v) => set({ hasHydrated: v }),
       addItem: (product, qty, branch) => {
+        const availableBranchIds = product.branch_availability ?? []
+        if (!availableBranchIds.includes(branch.id)) {
+          toast.error(`${product.name} tidak tersedia di ${branch.name}`)
+          return
+        }
+
+        const branchPrice = product.branch_prices?.[branch.id]
+        const resolvedPrice = Number(branchPrice ?? product.price)
+        const preparationMethods = product.preparation_methods?.length
+          ? product.preparation_methods
+          : DEFAULT_PREPARATION_METHODS
         const existing = get().items.find(
           i => i.id === String(product.id) && i.branchId === branch.id
         )
@@ -64,7 +82,7 @@ export const useCartStore = create<CartStore>()(
           set({
             items: get().items.map(i =>
               i.id === String(product.id) && i.branchId === branch.id
-                ? { ...i, qty: i.qty + qty }
+                ? { ...i, qty: i.qty + qty, price: resolvedPrice, preparation_methods: preparationMethods }
                 : i
             ),
           })
@@ -74,11 +92,12 @@ export const useCartStore = create<CartStore>()(
               id: String(product.id),
               name: product.name,
               slug: product.slug ?? '',
-              price: Number(product.price),
+              price: resolvedPrice,
               primary_image: product.primary_image,
               qty,
               branchId: branch.id,
               branchName: branch.name,
+              preparation_methods: preparationMethods,
             }],
           })
         }

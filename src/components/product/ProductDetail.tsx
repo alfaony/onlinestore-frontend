@@ -22,9 +22,13 @@ export default function ProductDetail({ product }: { product: Product }) {
   const [activeImg, setImg] = useState(0)
 
 
-  const updateQty         = useCartStore(s => s.updateQty)
   const setPendingProduct = useCartStore(s => s.setPendingProduct)
   const addItem           = useCartStore(s => s.addItem)
+  const activeBranch = useCartStore(s => s.activeBranch)
+  const hasHydrated  = useCartStore(s => s.hasHydrated)
+
+  const availableBranchIds = product.branch_availability ?? []
+  const isAvailable = !activeBranch || availableBranchIds.includes(activeBranch.id)
 
   const images = product.images?.length ? product.images : [product.primary_image].filter(Boolean)
 
@@ -35,13 +39,20 @@ export default function ProductDetail({ product }: { product: Product }) {
   )
 
   function handleAdd() {
-    const currentBranch = useCartStore.getState().activeBranch
-    if (currentBranch) {
-      addItem(product, qty, currentBranch)
-    } else {
-      setPendingProduct(product)
-    }
+  const currentBranch = useCartStore.getState().activeBranch
+
+  // ✅ Cek availability dulu
+  if (!isAvailable) {
+    setPendingProduct(product)
+    return
   }
+
+  if (currentBranch) {
+    addItem(product, qty, currentBranch)
+  } else {
+    setPendingProduct(product)
+  }
+}
 
   return (
     <div className="c-app" style={{ paddingTop: 44, paddingBottom: 60 }}>
@@ -62,7 +73,7 @@ export default function ProductDetail({ product }: { product: Product }) {
         <div>
           <div style={{ background:`linear-gradient(145deg,${S.creamD},${S.creamDp})`, borderRadius:20, height:340, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden', marginBottom:12 }}>
             {images[activeImg]?.image_path
-              ? <Image src={storageUrl(images[activeImg]!.image_path)} alt={product.name} fill style={{ objectFit:'cover' }} unoptimized/>
+              ? <Image src={storageUrl(images[activeImg]!.image_url ?? images[activeImg]!.image_path)} alt={product.name} fill style={{ objectFit:'cover' }} unoptimized/>
               : <span style={{ fontSize:100, filter:'drop-shadow(0 4px 12px rgba(0,0,0,0.1))' }}>🍜</span>
             }
             {product.popular && (
@@ -81,7 +92,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                 aria-pressed={activeImg === i}
                 style={{ flex:1, height:76, borderRadius:12, background:S.creamD, border:`2px solid ${activeImg===i ? S.red : 'transparent'}`, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', position:'relative', cursor:'pointer', transition:'border 0.2s' }}>
                 {img?.image_path
-                  ? <Image src={storageUrl(img.image_path)} alt="" fill style={{ objectFit:'cover' }} unoptimized/>
+                  ? <Image src={storageUrl(img.image_url ?? img.image_path)} alt="" fill style={{ objectFit:'cover' }} unoptimized/>
                   : <span style={{ fontSize:26 }}>🍜</span>
                 }
               </button>
@@ -146,9 +157,15 @@ export default function ProductDetail({ product }: { product: Product }) {
           </div>
 
           {/* Add button */}
-          <button onClick={handleAdd} className={`c-btn c-btn-lg c-btn-full ${totalInCart > 0 ? 'c-btn-success' : 'c-btn-primary'}`} style={{ marginBottom:12 }}>
-            {totalInCart > 0 ? `✓ ${totalInCart} di Keranjang — Tambah Lagi` : '🛒  Tambah ke Keranjang'}
-          </button>
+          {hasHydrated && !isAvailable ? (
+            <button onClick={handleAdd} className="c-btn c-btn-lg c-btn-full c-btn-ghost" style={{ marginBottom:12 }}>
+              ⚠️ Tidak tersedia di cabang ini — Ganti Cabang
+            </button>
+          ) : (
+            <button onClick={handleAdd} className={`c-btn c-btn-lg c-btn-full ${totalInCart > 0 ? 'c-btn-success' : 'c-btn-primary'}`} style={{ marginBottom:12 }}>
+              {totalInCart > 0 ? `✓ ${totalInCart} di Keranjang — Tambah Lagi` : '🛒  Tambah ke Keranjang'}
+            </button>
+          )}
 
           {/* Trust badges */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginTop:18 }}>

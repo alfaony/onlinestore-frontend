@@ -1,5 +1,6 @@
 import CategoryFilter from '@/components/product/CategoryFilter'
 import ProductGrid from '@/components/product/ProductGrid'
+import ActiveBranchSync from '@/components/product/ActiveBranchSync'
 import api from '@/lib/api'
 import type { Metadata } from 'next'
 import type { Branch } from '@/types'
@@ -28,11 +29,14 @@ async function getData(params: {
   branch_id?: string
 }) {
   try {
-    const q = new URLSearchParams({ per_page: '12' })
+    const q = new URLSearchParams({ per_page: '100' })
     if (params.category)  q.set('category', params.category)
     if (params.search)    q.set('search', params.search)
     if (params.sort)      q.set('sort', params.sort)
-    if (params.branch_id) q.set('branch_id', params.branch_id)
+    if (params.branch_id) {
+      q.set('branch_id', params.branch_id)
+      q.set('include_other_branches', '1')
+    }
 
     const [p, c, b] = await Promise.all([
       api.get(`/products?${q}`),
@@ -50,18 +54,20 @@ async function getData(params: {
       categories:    Array.isArray(c.data) ? c.data : (c.data?.data ?? []),
       meta:          p.data,
       activeBranch,
+      branches,
     }
   } catch {
-    return { products: [], categories: [], meta: {}, activeBranch: null }
+    return { products: [], categories: [], meta: {}, activeBranch: null, branches: [] }
   }
 }
 
 export default async function MenuPage({ searchParams }: Props) {
   const params = await searchParams
-  const { products, categories, meta, activeBranch } = await getData(params)
+  const { products, categories, meta, activeBranch, branches } = await getData(params)
 
   return (
     <div className="c-app section-pad">
+      <ActiveBranchSync branch={activeBranch} />
 
       {/* Branch Banner */}
       {activeBranch && (
@@ -74,6 +80,11 @@ export default async function MenuPage({ searchParams }: Props) {
         }}>
           <p style={{ fontSize: 13, color: '#1B3A6B' }}>
             📍 Menu dari <strong>{activeBranch.name}</strong>
+            {activeBranch.operational_status && (
+              <span style={{ display:'block', marginTop:4, fontSize:11, color:activeBranch.operational_status.code === 'open' ? '#047857' : '#92600A' }}>
+                {activeBranch.operational_status.message}
+              </span>
+            )}
           </p>
           <Link href="/menu" style={{ fontSize: 11, color: '#C41E3A', fontWeight: 600, textDecoration: 'none' }}>
             Ganti Cabang ×
@@ -110,7 +121,7 @@ export default async function MenuPage({ searchParams }: Props) {
       </Suspense>
 
       {/* Product Grid */}
-      <ProductGrid products={products} meta={meta} />
+      <ProductGrid products={products} meta={meta} activeBranch={activeBranch} branches={branches} />
     </div>
   )
 }

@@ -113,10 +113,15 @@ export default function BranchSelector() {
           {branches.map((b, i) => {
             const dist  = formatDistance(b.distance)
             const isNear = (b.distance ?? 9999) < 50
+            const operational = b.operational_status
+            const unavailable = operational ? !operational.accepting_orders : false
+            const statusColor = operational?.code === 'open' ? '#6ee7b7'
+              : operational?.code === 'closing_soon' ? '#F5C55A'
+              : '#fca5a5'
 
             return (
-              <button key={b.id} onClick={() => handleSelect(b)}
-                style={{ display:'flex', alignItems:'center', gap:12, padding:'14px', background: i===0&&userLat ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.075)', border: i===0&&userLat ? '1px solid rgba(245,197,90,.55)' : '1px solid rgba(255,255,255,0.13)', borderRadius:14, cursor:'pointer', textAlign:'left', width:'100%', transition:'all 0.2s' }}
+              <button key={b.id} onClick={() => handleSelect(b)} disabled={unavailable}
+                style={{ display:'flex', alignItems:'center', gap:12, padding:'14px', opacity:unavailable ? .68 : 1, background: i===0&&userLat ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.075)', border: i===0&&userLat ? '1px solid rgba(245,197,90,.55)' : '1px solid rgba(255,255,255,0.13)', borderRadius:14, cursor:unavailable?'not-allowed':'pointer', textAlign:'left', width:'100%', transition:'all 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
                 onMouseLeave={e => e.currentTarget.style.background = i===0&&userLat ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)'}>
 
@@ -137,6 +142,11 @@ export default function BranchSelector() {
                   </div>
                   <p className="line-clamp-1" style={{ fontSize:11, color:'rgba(255,255,255,0.52)', marginBottom:3 }}>{b.address}</p>
                   {dist && <p style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'#F5C55A' }}><MapPin size={10} /> {dist} dari lokasimu</p>}
+                  {operational && (
+                    <p style={{ fontSize:11, color:statusColor, marginTop:3, lineHeight:1.4 }}>
+                      <strong>{operational.label}</strong> · {operational.message}
+                    </p>
+                  )}
                 </div>
 
                 <ArrowRight size={17} color="rgba(255,255,255,.55)" />

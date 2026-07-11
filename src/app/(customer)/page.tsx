@@ -7,7 +7,8 @@ import CTASection from '@/components/home/CTASection'
 import LatestArticles from '@/components/home/LatestArticles'
 import api from '@/lib/api'
 
-export const revalidate = 3600
+// Refresh the static page before its 30-minute private R2 image URLs expire.
+export const revalidate = 1500
 
 async function getHomeData() {
     try {

@@ -11,6 +11,7 @@ const S = {
 interface TrackingItem {
   id: string
   product_name: string
+  preparation_method: 'frozen' | 'kukus' | 'goreng' | null
   quantity: number
   unit_price: number
   subtotal: number
@@ -349,7 +350,8 @@ export default function OrderTracking({ order }: { order: TrackingOrder }) {
 
           <div style={{ display:'grid', gridTemplateColumns:`repeat(${progress.steps.length}, 1fr)`, gap:4 }}>
             {progress.steps.map((step, index) => {
-              const isDone = index < progress.currentIndex
+              const isCompleted = progress.currentIndex === progress.steps.length - 1
+              const isDone = index < progress.currentIndex || (isCompleted && index === progress.currentIndex)
               const isCurrent = index === progress.currentIndex
               return (
                 <div key={step.key} style={{ minWidth:0 }}>
@@ -438,6 +440,11 @@ export default function OrderTracking({ order }: { order: TrackingOrder }) {
               <p style={{ fontSize:11, color:item.is_removed ? S.red : S.gray }}>
                 {item.is_removed ? `Dibatalkan · ${item.removed_reason ?? 'Produk tidak tersedia'}` : `×${item.quantity} · ${formatRupiah(item.unit_price)}`}
               </p>
+              {!item.is_removed && item.preparation_method && (
+                <p style={{ fontSize:10, color:S.green, marginTop:2 }}>
+                  {item.preparation_method === 'kukus' ? '♨️ Dikukus' : item.preparation_method === 'goreng' ? '🔥 Digoreng' : '❄️ Frozen'}
+                </p>
+              )}
             </div>
             <span style={{ fontSize:13, fontWeight:600, textDecoration:item.is_removed ? 'line-through' : 'none' }}>{formatRupiah(item.subtotal)}</span>
           </div>

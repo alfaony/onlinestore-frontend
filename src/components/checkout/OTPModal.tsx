@@ -1,11 +1,13 @@
 'use client'
 
+import Modal from '@/components/ui/Modal'
 import api from '@/lib/api'
 import { useMemberStore } from '@/stores/member.store'
-import Modal from '@/components/ui/Modal'
+import { Turnstile } from '@marsidev/react-turnstile'
 import axios from 'axios'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+
 
 const S = { red:'#C41E3A', navy:'#1B3A6B', creamDp:'#EDD9B8', gray:'#6B7280', green:'#10B981' }
 
@@ -31,10 +33,25 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
   const [loading, setLoading] = useState(false)
   const [timer, setTimer] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const [phoneStatus, setPhoneStatus]       = useState<'idle'|'new'|'exists'>('idle')
+  const [checkingPhone, setCheckingPhone]   = useState(false)
 
-  useEffect(() => () => {
-    if (intervalRef.current) clearInterval(intervalRef.current)
-  }, [])
+  useEffect(() => {
+    if (!phone || phone.length < 9) { setPhoneStatus('idle'); return }
+    const t = setTimeout(async () => {
+      setCheckingPhone(true)
+      try {
+        const { data } = await api.post('/auth/check-phone', { phone })
+        setPhoneStatus(data.exists ? 'exists' : 'new')
+      } catch {
+        setPhoneStatus('idle')
+      } finally {
+        setCheckingPhone(false)
+      }
+    }, 600)
+    return () => clearTimeout(t)
+  }, [phone])
 
   function startTimer() {
     if (intervalRef.current) clearInterval(intervalRef.current)
@@ -52,17 +69,21 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
   }
 
   async function requestOtp() {
+    if (!turnstileToken) { toast.error('Selesaikan verifikasi dulu'); return }
     setLoading(true)
     try {
-      const response = await api.post('/auth/request-otp', { phone })
+      const response = await api.post('/auth/request-otp', {
+        phone,
+        turnstile_token: turnstileToken,
+      })
       setStep('otp')
       startTimer()
       if (response.data?.otp) {
-        toast.info(`Kode OTP development: ${response.data.otp}`, { description: 'Gunakan kode ini untuk verifikasi lokal.' })
+        toast.info(`OTP dev: ${response.data.otp}`)
       } else {
-        toast.success('Kode OTP dikirim', { description: `Periksa WhatsApp ${phone}.` })
+        toast.success('OTP dikirim ke WhatsApp')
       }
-    } catch (error: unknown) {
+    } catch (error) {
       toast.error(errorMessage(error, 'Gagal mengirim OTP.'))
     } finally {
       setLoading(false)
@@ -110,18 +131,49 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
 
         {step === 'phone' ? (
           <>
-            <div style={{ padding:'11px 13px', borderRadius:10, background:'rgba(16,185,129,.07)', color:'#166534', fontSize:12, marginBottom:18 }}>
-              ✓ Akun akan terdaftar atas nama <strong>{name}</strong>
+            {/* Info status nomor */}
+            {checkingPhone && (
+              <p style={{ fontSize:11, color:S.gray, marginBottom:10 }}>Mengecek nomor...</p>
+            )}
+            {!checkingPhone && phoneStatus === 'exists' && (
+              <div style={{ padding:'8px 12px', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:8, fontSize:11, color:S.green, marginBottom:10 }}>
+                ✓ Nomor terdaftar — kamu akan login sebagai member
+              </div>
+            )}
+            {!checkingPhone && phoneStatus === 'new' && (
+              <div style={{ padding:'8px 12px', background:'rgba(232,160,32,0.08)', border:'1px solid rgba(232,160,32,0.2)', borderRadius:8, fontSize:11, color:'#92600A', marginBottom:10 }}>
+                📝 Nomor baru — akun akan dibuat otomatis
+              </div>
+            )}
+
+            {/* Info nama — kalau ada */}
+            {phoneStatus === 'new' && name && (
+              <div style={{ padding:'11px 13px', borderRadius:10, background:'rgba(16,185,129,.07)', color:'#166534', fontSize:12, marginBottom:14 }}>
+                ✓ Akun akan terdaftar atas nama <strong>{name}</strong>
+              </div>
+            )}
+
+            {/* Cloudflare Turnstile */}
+            <div style={{ marginBottom:16 }}>
+              <Turnstile
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                onSuccess={token => setTurnstileToken(token)}
+                onExpire={() => setTurnstileToken('')}
+                onError={() => { setTurnstileToken(''); toast.error('Verifikasi gagal, coba refresh') }}
+                options={{ theme:'light', language:'id' }}
+              />
             </div>
+
             <div style={{ display:'flex', gap:10 }}>
               <button type="button" onClick={onClose} className="c-btn c-btn-ghost c-btn-md" style={{ flex:1 }}>Batal</button>
-              <button type="button" onClick={requestOtp} disabled={loading} className="c-btn c-btn-primary c-btn-md" style={{ flex:2 }}>
+              <button type="button" onClick={requestOtp} disabled={loading || !turnstileToken} className="c-btn c-btn-primary c-btn-md" style={{ flex:2 }}>
                 {loading ? 'Mengirim…' : 'Kirim kode OTP'}
               </button>
             </div>
           </>
         ) : (
           <>
+            {/* OTP input — tidak berubah dari sebelumnya */}
             <label htmlFor="otp-code" style={{ display:'block', fontSize:11, fontWeight:700, color:S.gray, marginBottom:6 }}>KODE VERIFIKASI</label>
             <input
               id="otp-code"

@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: data.article.title,
         description: data.article.meta_description,
-        openGraph: { images: data.article.image ? [{ url: data.article.image }] : [] },
+        openGraph: { images: data.article.image ? [{ url: data.article.image_url ?? data.article.image }] : [] },
     }
 }
 
@@ -34,7 +34,7 @@ export default async function ArtikelDetailPage({ params }: Props) {
     const { article, related } = data
     const jsonLd = {
         '@context': 'https://schema.org', '@type': 'Article',
-        headline: article.title, image: article.image,
+        headline: article.title, image: article.image_url ?? article.image,
         datePublished: article.published_at,
         author: { '@type': 'Person', name: article.author?.name ?? 'Seraso Palembang' },
         publisher: { '@type': 'Organization', name: 'Seraso Palembang' },
@@ -73,7 +73,7 @@ export default async function ArtikelDetailPage({ params }: Props) {
                     {article.image && (
                         <div className="relative h-[240px] md:h-[320px] rounded-2xl overflow-hidden mb-7">
                             <Image
-                                src={storageUrl(article.image)}
+                                src={storageUrl(article.image_url ?? article.image)}
                                 alt={article.title}
                                 fill
                                 className="object-cover"
@@ -99,7 +99,7 @@ export default async function ArtikelDetailPage({ params }: Props) {
                                 <Link key={r.id} href={`/artikel/${r.slug}`} className="flex gap-3">
                                     <div className="relative h-[72px] w-[72px] flex-shrink-0 overflow-hidden rounded-xl bg-sr-cream-d">
                                         {r.image
-                                            ? <Image src={storageUrl(r.image)} alt={r.title} fill className="object-cover" unoptimized />
+                                            ? <Image src={storageUrl(r.image_url ?? r.image)} alt={r.title} fill className="object-cover" unoptimized />
                                             : <div className="h-full flex items-center justify-center">📰</div>
                                         }
                                     </div>

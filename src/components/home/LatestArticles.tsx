@@ -63,7 +63,7 @@ export default async function LatestArticles() {
             <Link key={a.id} href={`/artikel/${a.slug}`} className="c-card block">
               <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-gradient-to-br from-sr-navy to-sr-navy-l">
                 {a.image
-                  ? <Image src={storageUrl(a.image)} alt={a.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" style={{ objectFit: 'cover' }} unoptimized />
+                  ? <Image src={storageUrl(a.image_url ?? a.image)} alt={a.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" style={{ objectFit: 'cover' }} unoptimized />
                   : <span className="font-display text-2xl font-bold text-white/55">SERASO</span>
                 }
               </div>

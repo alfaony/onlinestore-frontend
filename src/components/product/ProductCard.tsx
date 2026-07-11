@@ -1,24 +1,31 @@
 'use client'
 import { formatRupiah, storageUrl, stripHtml } from '@/lib/utils'
 import { useCartStore } from '@/stores/cart.store'
-import type { Product } from '@/types'
+import type { Branch, Product } from '@/types'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, MapPin, Plus, ShoppingBag } from 'lucide-react'
 
 const S = { red: '#C41E3A', creamD: '#F5EDD9', creamDp: '#EDD9B8', gray: '#6B7280', dark: '#1A1A2E' }
 
-export default function ProductCard({ product }: { product: Product }) {
+export default function ProductCard({ product, selectedBranch, branches = [], isOtherBranch = false }: {
+  product: Product
+  selectedBranch?: Branch | null
+  branches?: Branch[]
+  isOtherBranch?: boolean
+}) {
   const setPendingProduct = useCartStore(s => s.setPendingProduct)
   const activeBranch = useCartStore(s => s.activeBranch)
   const addItem           = useCartStore(s => s.addItem)
   const hasHydrated       = useCartStore(s => s.hasHydrated)
 
-  const isAvailable =
-  !activeBranch ||
-  !product.branch_availability ||
-  product.branch_availability.length === 0 ||
-  product.branch_availability.includes(activeBranch.id)
+  const effectiveBranch = selectedBranch !== undefined ? selectedBranch : activeBranch
+  const availableBranchIds = product.branch_availability ?? []
+  const isAvailable = !effectiveBranch || availableBranchIds.includes(effectiveBranch.id)
+  const availableBranchNames = branches
+    .filter(branch => availableBranchIds.includes(branch.id))
+    .map(branch => branch.name)
+  const primaryImage = product.primary_image ?? product.images?.[0]
 
 
   const totalInCart = useCartStore(s =>
@@ -31,7 +38,11 @@ export default function ProductCard({ product }: { product: Product }) {
     e.preventDefault()
     e.stopPropagation()
 
-    const currentBranch = useCartStore.getState().activeBranch
+    // Halaman menu mengirim branch secara langsung agar klik tidak terkena
+    // state Zustand lama pada render pertama setelah berpindah cabang.
+    const currentBranch = selectedBranch !== undefined
+      ? selectedBranch
+      : useCartStore.getState().activeBranch
 
     if (!isAvailable) {
       // ✅ Tidak tersedia → buka modal pilih branch lain
@@ -47,7 +58,7 @@ export default function ProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <article className="c-card product-card">
+    <article className="c-card product-card" style={isOtherBranch ? { borderColor:'rgba(27,58,107,.18)', background:'#FCFBF8' } : undefined}>
 
       {product.popular && (
         <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}>
@@ -58,8 +69,8 @@ export default function ProductCard({ product }: { product: Product }) {
       {/* Image */}
       <Link href={`/menu/${product.slug}`} className="block overflow-hidden" aria-label={`Lihat ${product.name}`}>
         <div className="product-card__media" style={{ background: `linear-gradient(145deg,${S.creamD},${S.creamDp})`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-          {product.primary_image?.image_path
-            ? <Image src={storageUrl(product.primary_image.image_path)} alt={product.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" style={{ objectFit: 'cover' }} unoptimized />
+          {primaryImage?.image_path
+            ? <Image src={storageUrl(primaryImage.image_url ?? primaryImage.image_path)} alt={product.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" style={{ objectFit: 'cover' }} unoptimized />
             : <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/50 text-5xl shadow-sm">🍜</div>
           }
           {(product.shipping_discounts?.length ?? 0) > 0 && (
@@ -74,7 +85,9 @@ export default function ProductCard({ product }: { product: Product }) {
       <div className="product-card__body">
         <div className="mb-2 flex items-center justify-between gap-2">
           <span className="c-tag c-tag-navy">{product.category?.name ?? 'Produk'}</span>
-          <span className="flex items-center gap-1 text-[11px] font-medium text-sr-gray"><MapPin size={10} /> Siap dipesan</span>
+          <span className="flex items-center gap-1 text-[11px] font-medium text-sr-gray">
+            <MapPin size={10} /> {isOtherBranch ? `Ada di ${availableBranchNames.slice(0,2).join(', ')}` : 'Siap dipesan'}
+          </span>
         </div>
 
         <Link href={`/menu/${product.slug}`}>

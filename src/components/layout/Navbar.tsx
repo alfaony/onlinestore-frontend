@@ -23,6 +23,7 @@ export default function Navbar() {
   const cartCount   = useCartCount()
   const cartTotal   = useCartTotal()
   const setCartOpen = useCartStore(s => s.setCartOpen)
+  
   const hasCart = hasHydrated && cartCount > 0
 
   return (
@@ -30,7 +31,7 @@ export default function Navbar() {
       <div className="c-app h-16 flex items-center justify-between">
 
         {/* Logo */}
-        <Link href="/"><Logo size={26} /></Link>
+        <Link href="/"><Logo height={52} variant="header" /></Link>
 
         {hasHydrated && activeBranch && (
         <div style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px', background:'rgba(27,58,107,0.08)', borderRadius:8, fontSize:11 }}>

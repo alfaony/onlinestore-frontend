@@ -48,7 +48,7 @@ export default async function ArtikelPage() {
                             <div className={`relative overflow-hidden bg-gradient-to-br from-sr-navy to-sr-navy-l
                                 ${i === 0 ? 'h-48 md:h-[220px]' : 'h-[160px]'}`}>
                                 {a.image
-                                    ? <Image src={storageUrl(a.image)} alt={a.title} fill className="object-cover" unoptimized />
+                                    ? <Image src={storageUrl(a.image_url ?? a.image)} alt={a.title} fill className="object-cover" unoptimized />
                                     : <div className="h-full flex items-center justify-center text-5xl">📰</div>
                                 }
                                 <div className="absolute top-3.5 left-3.5">

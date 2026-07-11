@@ -1,10 +1,13 @@
 // frontend/src/types/index.ts
+export type PreparationMethod = 'frozen' | 'kukus' | 'goreng'
+
 export interface Product {
     id: string      // ← string UUID, BUKAN number
     name: string
     slug: string
     description: string
     price: number
+    preparation_methods?: PreparationMethod[]
     is_active: boolean
     category: Category
     images: ProductImage[]
@@ -13,6 +16,8 @@ export interface Product {
     popular: boolean
     stock: number;
     branch_availability?: string[]  // ← tambah kalau belum ada branch_availability
+    branch_prices?: Record<string, number>
+    available_at_selected_branch?: boolean | null
 }
 
 export interface Category {
@@ -20,11 +25,13 @@ export interface Category {
     name: string
     slug: string
     image: string | null
+    image_url?: string | null
 }
 
 export interface ProductImage {
     id: string
     image_path: string
+    image_url?: string | null
     is_primary: boolean
     sort_order: number
 }
@@ -45,6 +52,20 @@ export interface Branch {
     phone: string
     latitude: number | null
     longitude: number | null
+    is_accepting_orders?: boolean
+    sells_frozen_only?: boolean
+    can_cook?: boolean
+    operational_status?: BranchOperationalStatus
+}
+
+export interface BranchOperationalStatus {
+    code: 'open' | 'closing_soon' | 'closed' | 'paused' | 'inactive'
+    label: string
+    message: string
+    accepting_orders: boolean
+    scheduled_execution_at: string | null
+    next_open_at: string | null
+    closes_at: string | null
 }
 
 export interface Member {
@@ -77,6 +98,8 @@ export interface Order {
     shipping_discount: number
     voucher_discount: number
     total: number
+    affiliate_id?: string | null
+    affiliate_code_snapshot?: string | null
     items: OrderItem[]
     shipping: Shipping | null
     payment: Payment | null
@@ -110,6 +133,7 @@ export interface Order {
 export interface OrderItem {
     id: string
     product_name: string
+    preparation_method?: 'frozen' | 'kukus' | 'goreng' | null
     price: number
     quantity: number
     subtotal: number
@@ -162,6 +186,12 @@ export interface PromotionPreview {
     available_promotions: PromotionSummary[]
 }
 
+export interface AffiliateValidateResponse {
+    valid: boolean
+    affiliate_name?: string
+    message?: string
+}
+
 export interface OrderStatusHistory {
     status: OrderStatus
     note: string | null
@@ -177,6 +207,7 @@ export interface Article {
     title: string
     slug: string
     image: string | null
+    image_url?: string | null
     meta_description: string | null
     published_at: string
     category: Category | null
@@ -202,6 +233,7 @@ export interface CartItem {
     qty: number
     branchId: string
     branchName: string  // ← tambah
+    preparation_methods?: PreparationMethod[]
 }
 
 export interface Product {

@@ -1,6 +1,6 @@
 'use client'
-import Link from 'next/link'
 import Logo from '@/components/ui/Logo'
+import Link from 'next/link'
 
 export default function Footer() {
   return (
@@ -10,7 +10,7 @@ export default function Footer() {
 
           {/* Brand */}
           <div>
-            <Logo size={28} light />
+            <Logo height={76} variant="footer-dark" />
             <p style={{ fontSize: 12, lineHeight: 1.8, color: 'rgba(255,255,255,0.45)', marginTop: 12, maxWidth: 240 }}>
               Hidangan khas Palembang autentik, dibuat segar dari resep keluarga untuk meja makan Indonesia.
             </p>
@@ -40,7 +40,7 @@ export default function Footer() {
           {/* Contact */}
           <div>
             <p style={{ color: '#fff', fontWeight: 600, marginBottom: 14, fontSize: 13 }}>Kontak</p>
-            {[['📍', 'Palembang, Sumatera Selatan'], ['📞', '0711-234-567'], ['✉️', 'hello@seraso.id']].map(([ic, t]) => (
+            {[['📍', 'Palembang, Sumatera Selatan'], ['📞', '+62821-3695-9786'], ['✉️', 'serasopalembang@gmail.com']].map(([ic, t]) => (
               <div key={t} style={{ display: 'flex', gap: 6, marginBottom: 8, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
                 {ic} {t}
               </div>
