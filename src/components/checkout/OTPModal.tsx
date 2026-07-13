@@ -7,9 +7,10 @@ import { Turnstile } from '@marsidev/react-turnstile'
 import axios from 'axios'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import styles from './OTPModal.module.css'
 
 
-const S = { red:'#C41E3A', navy:'#1B3A6B', creamDp:'#EDD9B8', gray:'#6B7280', green:'#10B981' }
+const S = { red:'#C41E3A', gray:'#6B7280', green:'#10B981' }
 
 interface Props {
   open: boolean
@@ -38,7 +39,7 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
   const [checkingPhone, setCheckingPhone]   = useState(false)
 
   useEffect(() => {
-    if (!phone || phone.length < 9) { setPhoneStatus('idle'); return }
+    if (!phone || phone.length < 9) return
     const t = setTimeout(async () => {
       setCheckingPhone(true)
       try {
@@ -52,6 +53,8 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
     }, 600)
     return () => clearTimeout(t)
   }, [phone])
+
+  const displayedPhoneStatus = phone.length >= 9 ? phoneStatus : 'idle'
 
   function startTimer() {
     if (intervalRef.current) clearInterval(intervalRef.current)
@@ -68,6 +71,29 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
     }, 1000)
   }
 
+  useEffect(() => () => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+  }, [])
+
+  function resetModal() {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    intervalRef.current = null
+    setStep('phone')
+    setOtp('')
+    setTimer(0)
+    setTurnstileToken('')
+  }
+
+  function closeModal() {
+    resetModal()
+    onClose()
+  }
+
+  function prepareResend() {
+    resetModal()
+    toast.info('Selesaikan verifikasi keamanan untuk meminta kode baru.')
+  }
+
   async function requestOtp() {
     if (!turnstileToken) { toast.error('Selesaikan verifikasi dulu'); return }
     setLoading(true)
@@ -76,6 +102,7 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
         phone,
         turnstile_token: turnstileToken,
       })
+      setTurnstileToken('')
       setStep('otp')
       startTimer()
       if (response.data?.otp) {
@@ -103,6 +130,7 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
       toast.success(`Selamat datang, ${data.member.name}`, {
         description: 'Nomor WhatsApp berhasil diverifikasi.',
       })
+      resetModal()
       onVerified()
     } catch (error: unknown) {
       toast.error(errorMessage(error, 'OTP tidak valid.'))
@@ -112,21 +140,25 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
   }
 
   return (
-    <Modal open={open} onClose={onClose} titleId="otp-modal-title" maxWidth={400}>
-      <div style={{ padding: 26 }}>
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16, marginBottom:20 }}>
-          <div>
-            <span style={{ display:'inline-flex', padding:'4px 8px', borderRadius:99, background:'rgba(27,58,107,.08)', color:S.navy, fontSize:11, fontWeight:700, letterSpacing:'.08em', marginBottom:8 }}>
+    <Modal open={open} onClose={closeModal} titleId="otp-modal-title" maxWidth={400}>
+      <div className={styles.content}>
+        <div className={styles.header}>
+          <div className={styles.headerCopy}>
+            <span className={styles.stepBadge}>
               LANGKAH {step === 'phone' ? '1' : '2'} DARI 2
             </span>
-            <h2 id="otp-modal-title" style={{ fontFamily:'var(--font-display)', fontSize:28, lineHeight:1.05, fontWeight:700, color:S.navy }}>
+            <div className={styles.progress} aria-hidden="true">
+              <span data-active="true" />
+              <span data-active={step === 'otp'} />
+            </div>
+            <h2 id="otp-modal-title" className={styles.title}>
               {step === 'phone' ? 'Verifikasi WhatsApp' : 'Masukkan kode OTP'}
             </h2>
-            <p style={{ fontSize:12, lineHeight:1.6, color:S.gray, marginTop:6 }}>
+            <p className={styles.description}>
               {step === 'phone' ? 'Kami akan mengirim kode keamanan ke' : 'Kode enam digit telah dikirim ke'} <strong>{phone}</strong>
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup modal" style={{ width:34, height:34, borderRadius:10, border:0, background:'#F3F0EB', color:S.gray, fontSize:17, flexShrink:0 }}>×</button>
+          <button type="button" onClick={closeModal} aria-label="Tutup modal" className={styles.closeButton}>×</button>
         </div>
 
         {step === 'phone' ? (
@@ -135,38 +167,37 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
             {checkingPhone && (
               <p style={{ fontSize:11, color:S.gray, marginBottom:10 }}>Mengecek nomor...</p>
             )}
-            {!checkingPhone && phoneStatus === 'exists' && (
+            {!checkingPhone && displayedPhoneStatus === 'exists' && (
               <div style={{ padding:'8px 12px', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:8, fontSize:11, color:S.green, marginBottom:10 }}>
                 ✓ Nomor terdaftar — kamu akan login sebagai member
               </div>
             )}
-            {!checkingPhone && phoneStatus === 'new' && (
+            {!checkingPhone && displayedPhoneStatus === 'new' && (
               <div style={{ padding:'8px 12px', background:'rgba(232,160,32,0.08)', border:'1px solid rgba(232,160,32,0.2)', borderRadius:8, fontSize:11, color:'#92600A', marginBottom:10 }}>
                 📝 Nomor baru — akun akan dibuat otomatis
               </div>
             )}
 
             {/* Info nama — kalau ada */}
-            {phoneStatus === 'new' && name && (
+            {displayedPhoneStatus === 'new' && name && (
               <div style={{ padding:'11px 13px', borderRadius:10, background:'rgba(16,185,129,.07)', color:'#166534', fontSize:12, marginBottom:14 }}>
                 ✓ Akun akan terdaftar atas nama <strong>{name}</strong>
               </div>
             )}
 
             {/* Cloudflare Turnstile */}
-            <div style={{ marginBottom:16 }}>
-              <Turnstile
-                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-                onSuccess={token => setTurnstileToken(token)}
-                onExpire={() => setTurnstileToken('')}
-                onError={() => { setTurnstileToken(''); toast.error('Verifikasi gagal, coba refresh') }}
-                options={{ theme:'light', language:'id' }}
-              />
-            </div>
+            <Turnstile
+              className={styles.turnstile}
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+              onSuccess={token => setTurnstileToken(token)}
+              onExpire={() => setTurnstileToken('')}
+              onError={() => { setTurnstileToken(''); toast.error('Verifikasi gagal, coba refresh') }}
+              options={{ theme:'light', language:'id', size:'flexible' }}
+            />
 
-            <div style={{ display:'flex', gap:10 }}>
-              <button type="button" onClick={onClose} className="c-btn c-btn-ghost c-btn-md" style={{ flex:1 }}>Batal</button>
-              <button type="button" onClick={requestOtp} disabled={loading || !turnstileToken} className="c-btn c-btn-primary c-btn-md" style={{ flex:2 }}>
+            <div className={styles.actions}>
+              <button type="button" onClick={closeModal} className="c-btn c-btn-ghost c-btn-md">Batal</button>
+              <button type="button" onClick={requestOtp} disabled={loading || !turnstileToken} className="c-btn c-btn-primary c-btn-md">
                 {loading ? 'Mengirim…' : 'Kirim kode OTP'}
               </button>
             </div>
@@ -174,7 +205,7 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
         ) : (
           <>
             {/* OTP input — tidak berubah dari sebelumnya */}
-            <label htmlFor="otp-code" style={{ display:'block', fontSize:11, fontWeight:700, color:S.gray, marginBottom:6 }}>KODE VERIFIKASI</label>
+            <label htmlFor="otp-code" className={styles.otpLabel}>KODE VERIFIKASI</label>
             <input
               id="otp-code"
               inputMode="numeric"
@@ -184,15 +215,17 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
               value={otp}
               onChange={event => setOtp(event.target.value.replace(/\D/g,''))}
               placeholder="000000"
-              style={{ width:'100%', padding:'14px 10px', borderRadius:12, border:`1.5px solid ${S.creamDp}`, fontSize:24, fontWeight:700, letterSpacing:10, textAlign:'center', marginBottom:8, fontFamily:'ui-monospace, monospace', outline:'none' }}
+              className={styles.otpInput}
+              data-complete={otp.length === 6}
+              aria-describedby="otp-help"
             />
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, fontSize:11 }}>
-              <span style={{ color:S.gray }}>Kode berlaku 5 menit</span>
+            <div id="otp-help" className={styles.otpMeta}>
+              <span style={{ color:S.gray }}>Kode berlaku selama 5 menit</span>
               {timer > 0 ? (
                 <span style={{ color:S.red, fontWeight:600 }}>Kirim ulang dalam {timer} detik</span>
               ) : (
-                <button type="button" onClick={requestOtp} disabled={loading} style={{ background:'none', border:0, color:S.red, fontSize:11, fontWeight:700 }}>
-                  Kirim ulang kode
+                <button type="button" onClick={prepareResend} disabled={loading} className={styles.resendButton}>
+                  Minta kode baru
                 </button>
               )}
             </div>

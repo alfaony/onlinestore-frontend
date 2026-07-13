@@ -1,6 +1,7 @@
 import ProductCard from './ProductCard'
 import type { Branch, Product } from '@/types'
 import Link from 'next/link'
+import { MapPin, Store } from 'lucide-react'
 
 interface Props {
   products: Product[]
@@ -36,19 +37,41 @@ export default function ProductGrid({ products, activeBranch, branches = [] }: P
 
   return (
     <>
-      <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>
-        {availableProducts.length} menu tersedia di {activeBranch?.name ?? 'semua cabang'}
-      </p>
-      <div className="grid-products">
-        {availableProducts.map(p => <ProductCard key={p.id} product={p} selectedBranch={activeBranch} branches={branches} />)}
-      </div>
+      {availableProducts.length > 0 ? (
+        <>
+          <p className="mb-4 flex items-center gap-1.5 text-xs text-sr-gray">
+            <MapPin size={13} aria-hidden="true" />
+            {availableProducts.length} menu tersedia di {activeBranch?.name ?? 'semua cabang'}
+          </p>
+          <div className="grid-products">
+            {availableProducts.map(p => <ProductCard key={p.id} product={p} selectedBranch={activeBranch} branches={branches} />)}
+          </div>
+        </>
+      ) : activeBranch ? (
+        <div className="rounded-2xl border border-dashed border-sr-navy/20 bg-white/60 px-5 py-8 text-center">
+          <p className="text-sm font-semibold text-sr-navy">Belum ada menu yang cocok di {activeBranch.name}</p>
+          <p className="mt-1 text-xs leading-5 text-sr-gray">Coba ubah pencarian atau pilih produk dari cabang lain di bawah.</p>
+        </div>
+      ) : null}
 
       {otherProducts.length > 0 && (
-        <section style={{ marginTop:48, paddingTop:32, borderTop:'1px solid #EDD9B8' }}>
-          <div style={{ maxWidth:620, marginBottom:20 }}>
-            <span style={{ display:'inline-block', fontSize:11, fontWeight:700, letterSpacing:'.08em', color:'#C41E3A', marginBottom:7 }}>JELAJAHI CABANG LAIN</span>
-            <h2 style={{ fontFamily:'var(--font-display), Georgia, serif', fontSize:'clamp(25px,4vw,34px)', lineHeight:1.1, color:'#1B3A6B', marginBottom:7 }}>Menu lain yang mungkin kamu suka</h2>
-            <p style={{ fontSize:13, lineHeight:1.6, color:'#6B7280' }}>Produk ini belum tersedia di {activeBranch?.name}, tetapi bisa dipesan dari cabang lain. Pilih produk untuk melihat cabang yang menyediakannya.</p>
+        <section className="mt-12 border-t border-sr-cream-dp pt-8" aria-labelledby="other-branch-products-title">
+          <div className="mb-6 rounded-2xl border border-sr-navy/10 bg-sr-navy/[0.035] p-4 sm:flex sm:items-start sm:gap-4 sm:p-5">
+            <span className="mb-3 grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-sr-navy shadow-sm sm:mb-0" aria-hidden="true">
+              <Store size={21} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-extrabold tracking-[.12em] text-sr-red">TERSEDIA DI CABANG LAIN</span>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-sr-navy shadow-sm">{otherProducts.length} menu</span>
+              </div>
+              <h2 id="other-branch-products-title" className="font-display text-[clamp(25px,4vw,34px)] font-bold leading-[1.1] text-sr-navy">
+                Menu Seraso lainnya
+              </h2>
+              <p className="mt-2 max-w-2xl text-[13px] leading-6 text-sr-gray">
+                Menu berikut belum tersedia di <strong className="font-semibold text-sr-navy">{activeBranch?.name}</strong>. Tekan <strong className="font-semibold text-sr-navy">Pilih cabang</strong> untuk melihat lokasi yang menyediakannya dan melanjutkan pesanan.
+              </p>
+            </div>
           </div>
           <div className="grid-products">
             {otherProducts.map(p => <ProductCard key={p.id} product={p} selectedBranch={activeBranch} branches={branches} isOtherBranch />)}

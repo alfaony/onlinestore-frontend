@@ -2,6 +2,7 @@
 import api from '@/lib/api'
 import { useMemberStore } from '@/stores/member.store'
 import { Turnstile } from '@marsidev/react-turnstile'
+import axios from 'axios'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -13,11 +14,9 @@ const S = {
 }
 
 function apiErr(e: unknown, fallback: string): string {
-  if (e && typeof e === 'object' && 'response' in e) {
-    const r = (e as any).response?.data
-    return r?.message ?? fallback
-  }
-  return fallback
+  return axios.isAxiosError<{ message?: string }>(e)
+    ? e.response?.data?.message ?? fallback
+    : fallback
 }
 
 export default function LoginPage() {
@@ -38,7 +37,6 @@ export default function LoginPage() {
   const [turnstileToken, setTurnstileToken] = useState('')
   const [phoneStatus,    setPhoneStatus]    = useState<'idle'|'new'|'exists'>('idle')
   const [checkingPhone,  setCheckingPhone]  = useState(false)
-  const [isNew,          setIsNew]          = useState(false)
 
   // Timer countdown
   useEffect(() => {
@@ -49,7 +47,7 @@ export default function LoginPage() {
 
   // Debounce cek nomor
   useEffect(() => {
-    if (!phone || phone.length < 9) { setPhoneStatus('idle'); return }
+    if (!phone || phone.length < 9) return
     const t = setTimeout(async () => {
       setCheckingPhone(true)
       try {
@@ -61,15 +59,18 @@ export default function LoginPage() {
     return () => clearTimeout(t)
   }, [phone])
 
+  const displayedPhoneStatus = phone.length >= 9 ? phoneStatus : 'idle'
+
   async function requestOtp() {
     if (!turnstileToken) { toast.error('Selesaikan verifikasi keamanan'); return }
-    if (phoneStatus === 'new' && !name.trim()) { toast.error('Isi nama terlebih dahulu'); return }
+    if (displayedPhoneStatus === 'new' && !name.trim()) { toast.error('Isi nama terlebih dahulu'); return }
     setLoading(true)
     try {
       const res = await api.post('/auth/request-otp', {
         phone:           '0' + phone,
         turnstile_token: turnstileToken,
       })
+      setTurnstileToken('')
       setStep('otp')
       setTimer(60)
       if (res.data?.otp) toast.info(`Dev OTP: ${res.data.otp}`)
@@ -89,7 +90,6 @@ export default function LoginPage() {
         name:     name || undefined,
       })
       setMember(data.member, data.token)
-      setIsNew(data.is_new)
       toast.success(data.is_new ? 'Selamat datang! Akun berhasil dibuat 🎉' : 'Berhasil masuk!')
       router.replace('/account/profile')
     } catch (e) {
@@ -98,7 +98,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="c-app" style={{ paddingTop:64, paddingBottom:64, maxWidth:440, margin:'0 auto' }}>
+    <div className="c-app account-login-page">
 
       {/* Brand */}
       <div style={{ textAlign:'center', marginBottom:32 }}>
@@ -108,7 +108,7 @@ export default function LoginPage() {
         <p style={{ fontSize:13, color:S.gray, marginTop:4 }}>Masuk atau daftar dengan WhatsApp</p>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:20, padding:28, border:`1px solid ${S.creamDp}`, boxShadow:'0 4px 24px rgba(0,0,0,0.06)' }}>
+      <div className="account-login-card">
 
         {step === 'phone' ? (
           <>
@@ -132,12 +132,12 @@ export default function LoginPage() {
               </div>
 
               {/* Status nomor */}
-              {!checkingPhone && phoneStatus === 'exists' && (
+              {!checkingPhone && displayedPhoneStatus === 'exists' && (
                 <div style={{ marginTop:8, padding:'7px 12px', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:8, fontSize:11, color:S.green }}>
                   ✓ Nomor terdaftar — kamu akan masuk sebagai member
                 </div>
               )}
-              {!checkingPhone && phoneStatus === 'new' && (
+              {!checkingPhone && displayedPhoneStatus === 'new' && (
                 <div style={{ marginTop:8, padding:'7px 12px', background:'rgba(232,160,32,0.08)', border:'1px solid rgba(232,160,32,0.2)', borderRadius:8, fontSize:11, color:'#92600A' }}>
                   📝 Nomor baru — akun akan dibuat otomatis
                 </div>
@@ -145,7 +145,7 @@ export default function LoginPage() {
             </div>
 
             {/* Nama — hanya kalau nomor baru */}
-            {phoneStatus === 'new' && (
+            {displayedPhoneStatus === 'new' && (
               <div style={{ marginBottom:14 }}>
                 <label style={{ fontSize:11, fontWeight:700, color:S.gray, display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:.5 }}>
                   Nama Kamu *
@@ -161,19 +161,20 @@ export default function LoginPage() {
             )}
 
             {/* Turnstile */}
-            <div style={{ marginBottom:18, display:'flex', justifyContent:'center' }}>
+            <div className="account-turnstile">
               <Turnstile
+                className="account-turnstile-widget"
                 siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
                 onSuccess={t => setTurnstileToken(t)}
                 onExpire={() => setTurnstileToken('')}
                 onError={() => { setTurnstileToken(''); toast.error('Verifikasi gagal, refresh halaman') }}
-                options={{ theme:'light', language:'id' }}
+                options={{ theme:'light', language:'id', size:'flexible' }}
               />
             </div>
 
             <button
               onClick={requestOtp}
-              disabled={loading || checkingPhone || !turnstileToken || phone.length < 9 || phoneStatus === 'idle' || (phoneStatus === 'new' && !name.trim())}
+              disabled={loading || checkingPhone || !turnstileToken || phone.length < 9 || displayedPhoneStatus === 'idle' || (displayedPhoneStatus === 'new' && !name.trim())}
               className="c-btn c-btn-primary c-btn-lg c-btn-full">
               {loading ? '⟳ Mengirim...' : 'Kirim Kode OTP via WhatsApp'}
             </button>
@@ -207,7 +208,8 @@ export default function LoginPage() {
                 onChange={e => setOtp(e.target.value.replace(/\D/g,''))}
                 autoFocus
                 placeholder="000000"
-                style={{ width:'100%', padding:'14px', border:`1.5px solid ${S.creamDp}`, borderRadius:12, fontSize:28, fontWeight:700, letterSpacing:16, textAlign:'center', outline:'none', fontFamily:'ui-monospace,monospace', transition:'border-color 0.2s', ...(otp.length === 6 ? { borderColor:S.green } : {}) }}
+                className="account-otp-input"
+                data-complete={otp.length === 6}
               />
             </div>
 
@@ -225,10 +227,14 @@ export default function LoginPage() {
                 <p style={{ fontSize:12, color:S.gray }}>Kirim ulang dalam <strong>{timer}s</strong></p>
               ) : (
                 <button
-                  onClick={requestOtp}
-                  disabled={loading || !turnstileToken}
+                  onClick={() => {
+                    setStep('phone')
+                    setOtp('')
+                    toast.info('Selesaikan verifikasi keamanan untuk meminta kode baru.')
+                  }}
+                  disabled={loading}
                   style={{ background:'none', border:'none', color:S.red, fontSize:12, fontWeight:600, cursor:'pointer' }}>
-                  Kirim ulang kode
+                  Minta kode baru
                 </button>
               )}
             </div>
