@@ -28,7 +28,8 @@ export default function ProductDetail({ product }: { product: Product }) {
   const hasHydrated  = useCartStore(s => s.hasHydrated)
 
   const availableBranchIds = product.branch_availability ?? []
-  const isAvailable = !activeBranch || availableBranchIds.includes(activeBranch.id)
+  const isAvailableAnywhere = availableBranchIds.length > 0
+  const isAvailable = isAvailableAnywhere && (!activeBranch || availableBranchIds.includes(activeBranch.id))
 
   const images = product.images?.length ? product.images : [product.primary_image].filter(Boolean)
 
@@ -39,20 +40,21 @@ export default function ProductDetail({ product }: { product: Product }) {
   )
 
   function handleAdd() {
-  const currentBranch = useCartStore.getState().activeBranch
+    const currentBranch = useCartStore.getState().activeBranch
 
-  // ✅ Cek availability dulu
-  if (!isAvailable) {
-    setPendingProduct(product)
-    return
-  }
+    if (!isAvailableAnywhere) return
 
-  if (currentBranch) {
-    addItem(product, qty, currentBranch)
-  } else {
-    setPendingProduct(product)
+    if (!isAvailable) {
+      setPendingProduct(product)
+      return
+    }
+
+    if (currentBranch) {
+      addItem(product, qty, currentBranch)
+    } else {
+      setPendingProduct(product)
+    }
   }
-}
 
   return (
     <div className="c-app" style={{ paddingTop: 44, paddingBottom: 60 }}>
@@ -157,7 +159,11 @@ export default function ProductDetail({ product }: { product: Product }) {
           </div>
 
           {/* Add button */}
-          {hasHydrated && !isAvailable ? (
+          {hasHydrated && !isAvailableAnywhere ? (
+            <div className="rounded-xl border border-sr-navy/10 bg-sr-navy/[0.04] px-4 py-3 text-center text-sm font-semibold text-sr-gray" style={{ marginBottom:12 }}>
+              Belum tersedia di cabang mana pun
+            </div>
+          ) : hasHydrated && !isAvailable ? (
             <button onClick={handleAdd} className="c-btn c-btn-lg c-btn-full c-btn-ghost" style={{ marginBottom:12 }}>
               ⚠️ Tidak tersedia di cabang ini — Ganti Cabang
             </button>

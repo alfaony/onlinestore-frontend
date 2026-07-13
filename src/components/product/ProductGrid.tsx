@@ -1,7 +1,7 @@
-import ProductCard from './ProductCard'
 import type { Branch, Product } from '@/types'
-import Link from 'next/link'
 import { MapPin, Store } from 'lucide-react'
+import Link from 'next/link'
+import ProductCard from './ProductCard'
 
 interface Props {
   products: Product[]
@@ -28,12 +28,25 @@ export default function ProductGrid({ products, activeBranch, branches = [] }: P
     )
   }
 
+  const productsAvailableAnywhere = products.filter(product => (product.branch_availability?.length ?? 0) > 0)
+
+  if (!productsAvailableAnywhere.length) {
+    return (
+      <div className="rounded-2xl border border-dashed border-sr-navy/20 bg-white/60 px-5 py-12 text-center py-3">
+        <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-sr-navy/[0.06] text-2xl" aria-hidden="true">🍽️</div>
+        <h3 className="font-display text-2xl font-bold text-sr-navy">Menu sedang belum tersedia</h3>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-sr-gray">Stok produk belum tersedia di cabang mana pun. Silakan coba kembali nanti.</p>
+      </div>
+    )
+  }
+
   const availableProducts = activeBranch
-    ? products.filter(product => product.available_at_selected_branch)
-    : products
-  const otherProducts = activeBranch
-    ? products.filter(product => !product.available_at_selected_branch && (product.branch_availability?.length ?? 0) > 0)
+    ? productsAvailableAnywhere.filter(product => product.available_at_selected_branch)
+    : productsAvailableAnywhere
+  const productsAvailableElsewhere = activeBranch
+    ? productsAvailableAnywhere.filter(product => !product.available_at_selected_branch)
     : []
+  const otherProducts = productsAvailableElsewhere
 
   return (
     <>
@@ -48,9 +61,13 @@ export default function ProductGrid({ products, activeBranch, branches = [] }: P
           </div>
         </>
       ) : activeBranch ? (
-        <div className="rounded-2xl border border-dashed border-sr-navy/20 bg-white/60 px-5 py-8 text-center">
+        <div className="rounded-2xl border border-dashed border-sr-navy/20 bg-white/60 px-5 py-8 text-center mb-5 py-3">
           <p className="text-sm font-semibold text-sr-navy">Belum ada menu yang cocok di {activeBranch.name}</p>
-          <p className="mt-1 text-xs leading-5 text-sr-gray">Coba ubah pencarian atau pilih produk dari cabang lain di bawah.</p>
+          <p className="mt-1 text-xs leading-5 text-sr-gray">
+            {otherProducts.length > 0
+              ? 'Coba ubah pencarian atau pilih produk dari cabang lain di bawah.'
+              : 'Coba ubah pencarian atau pilih cabang lain.'}
+          </p>
         </div>
       ) : null}
 
@@ -69,7 +86,8 @@ export default function ProductGrid({ products, activeBranch, branches = [] }: P
                 Menu Seraso lainnya
               </h2>
               <p className="mt-2 max-w-2xl text-[13px] leading-6 text-sr-gray">
-                Menu berikut belum tersedia di <strong className="font-semibold text-sr-navy">{activeBranch?.name}</strong>. Tekan <strong className="font-semibold text-sr-navy">Pilih cabang</strong> untuk melihat lokasi yang menyediakannya dan melanjutkan pesanan.
+                Menu berikut belum tersedia di <strong className="font-semibold text-sr-navy">{activeBranch?.name}</strong>.
+                {' '}Tekan <strong className="font-semibold text-sr-navy">Pilih cabang</strong> untuk melihat lokasi yang menyediakannya.
               </p>
             </div>
           </div>

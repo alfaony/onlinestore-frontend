@@ -21,6 +21,7 @@ export default function ProductCard({ product, selectedBranch, branches = [], is
 
   const effectiveBranch = selectedBranch !== undefined ? selectedBranch : activeBranch
   const availableBranchIds = product.branch_availability ?? []
+  const canChooseOtherBranch = availableBranchIds.length > 0
   const isAvailable = !effectiveBranch || availableBranchIds.includes(effectiveBranch.id)
   const availableBranchNames = branches
     .filter(branch => availableBranchIds.includes(branch.id))
@@ -52,8 +53,8 @@ export default function ProductCard({ product, selectedBranch, branches = [], is
       : useCartStore.getState().activeBranch
 
     if (!isAvailable) {
-      // ✅ Tidak tersedia → buka modal pilih branch lain
-      setPendingProduct(product)
+      // Produk yang tersedia di cabang lain dapat langsung memilih cabang.
+      if (canChooseOtherBranch) setPendingProduct(product)
       return
     }
 
@@ -98,7 +99,9 @@ export default function ProductCard({ product, selectedBranch, branches = [], is
         <div className="mb-2 flex items-center justify-between gap-2">
           <span className="c-tag c-tag-navy">{product.category?.name ?? 'Produk'}</span>
           <span className="flex items-center gap-1 text-[11px] font-medium text-sr-gray">
-            <MapPin size={10} /> {isOtherBranch ? `${availableBranchNames.length} cabang` : 'Siap dipesan'}
+            <MapPin size={10} /> {isOtherBranch
+              ? canChooseOtherBranch ? `${availableBranchNames.length || availableBranchIds.length} cabang` : 'Belum tersedia'
+              : 'Siap dipesan'}
           </span>
         </div>
 
@@ -116,8 +119,12 @@ export default function ProductCard({ product, selectedBranch, branches = [], is
           <div className="mb-4 flex gap-2.5 rounded-xl border border-sr-navy/10 bg-sr-navy/[0.04] p-3">
             <Store size={16} className="mt-0.5 shrink-0 text-sr-navy" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="text-[11px] font-bold leading-4 text-sr-navy">Belum tersedia di {effectiveBranch?.name}</p>
-              <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-sr-gray">Tersedia di {branchLabel || 'cabang Seraso lainnya'}</p>
+              <p className="text-[11px] font-bold leading-4 text-sr-navy">
+                {canChooseOtherBranch ? `Belum tersedia di ${effectiveBranch?.name}` : 'Belum tersedia untuk dipesan'}
+              </p>
+              <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-sr-gray">
+                {canChooseOtherBranch ? `Tersedia di ${branchLabel || 'cabang Seraso lainnya'}` : 'Produk ada di katalog, tetapi belum tersedia di cabang mana pun.'}
+              </p>
             </div>
           </div>
         )}
@@ -126,17 +133,21 @@ export default function ProductCard({ product, selectedBranch, branches = [], is
         <div className="mt-auto flex items-end justify-between gap-3 border-t border-sr-navy/10 pt-4">
           <div>
             <div style={{ fontFamily:"var(--font-display), Georgia, serif", fontSize:22, lineHeight:1, fontWeight:700, color:S.red }}>
-              {isOtherBranch && <span className="mb-1 block font-sans text-[10px] font-semibold uppercase tracking-wide text-sr-gray">Mulai dari</span>}
+              {isOtherBranch && canChooseOtherBranch && <span className="mb-1 block font-sans text-[10px] font-semibold uppercase tracking-wide text-sr-gray">Mulai dari</span>}
               {formatRupiah(displayPrice)}
             </div>
             <div className="mt-1 text-[11px] text-sr-gray">per porsi</div>
           </div>
 
-          {hasHydrated && !isAvailable ? (
+          {hasHydrated && !isAvailable && canChooseOtherBranch ? (
             // ❌ Tidak tersedia di branch aktif
             <button onClick={handleAdd} className="c-btn c-btn-outline c-btn-sm" aria-label={`Pilih cabang untuk ${product.name}`}>
               <MapPin size={13} /> Pilih cabang
             </button>
+          ) : hasHydrated && !isAvailable ? (
+            <span className="inline-flex min-h-9 items-center rounded-lg bg-sr-gray/10 px-3 text-[11px] font-bold text-sr-gray">
+              Belum tersedia
+            </span>
           ) : hasHydrated && totalInCart > 0 ? (
             <button onClick={handleAdd} aria-label={`Tambah ${product.name}`} style={{ display:'flex', minHeight:38, alignItems:'center', gap:6, background:'rgba(196,30,58,0.08)', border:'1px solid rgba(196,30,58,0.25)', borderRadius:10, padding:'6px 10px', cursor:'pointer' }}>
               <span style={{ fontSize:12, color:S.red, fontWeight:700 }}>{totalInCart} ×</span>
