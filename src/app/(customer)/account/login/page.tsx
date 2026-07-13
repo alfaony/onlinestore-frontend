@@ -173,7 +173,7 @@ export default function LoginPage() {
 
             <button
               onClick={requestOtp}
-              disabled={loading || !turnstileToken || phone.length < 9 || (phoneStatus === 'new' && !name.trim())}
+              disabled={loading || checkingPhone || !turnstileToken || phone.length < 9 || phoneStatus === 'idle' || (phoneStatus === 'new' && !name.trim())}
               className="c-btn c-btn-primary c-btn-lg c-btn-full">
               {loading ? '⟳ Mengirim...' : 'Kirim Kode OTP via WhatsApp'}
             </button>
