@@ -12,6 +12,8 @@ interface Props {
 
 export default function Modal({ open, onClose, titleId, children, maxWidth = 420 }: Props) {
   const panelRef = useRef<HTMLElement>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     if (!open) return
@@ -19,7 +21,7 @@ export default function Modal({ open, onClose, titleId, children, maxWidth = 420
     const previousOverflow = document.body.style.overflow
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') onCloseRef.current()
     }
 
     document.body.style.overflow = 'hidden'
@@ -31,7 +33,8 @@ export default function Modal({ open, onClose, titleId, children, maxWidth = 420
       window.removeEventListener('keydown', onKeyDown)
       previouslyFocused?.focus()
     }
-  }, [onClose, open])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   if (!open) return null
 

@@ -36,8 +36,10 @@ interface CartStore {
   hasHydrated: boolean
   pendingProduct: Product | null
   activeBranch: { id: string; name: string } | null
+  switchingBranch: boolean
 
   setActiveBranch: (b: { id: string; name: string } | null) => void
+  setSwitchingBranch: (v: boolean) => void
   setHasHydrated: (v: boolean) => void
 
   setCartOpen: (open: boolean) => void
@@ -47,6 +49,8 @@ interface CartStore {
   updateQty: (productId: string, branchId: string, qty: number) => void
   clearCart: () => void
 }
+
+let switchingBranchTimeout: ReturnType<typeof setTimeout> | null = null
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -60,6 +64,16 @@ export const useCartStore = create<CartStore>()(
 
       activeBranch: null,
       setActiveBranch: (b) => set({ activeBranch: b }),
+
+      switchingBranch: false,
+      setSwitchingBranch: (v) => {
+        if (switchingBranchTimeout) { clearTimeout(switchingBranchTimeout); switchingBranchTimeout = null }
+        if (v) {
+          // Jaga-jaga kalau navigasi gagal/dibatalkan — jangan sampai spinner nyangkut selamanya.
+          switchingBranchTimeout = setTimeout(() => set({ switchingBranch: false }), 8000)
+        }
+        set({ switchingBranch: v })
+      },
 
       hasHydrated: false,
       setHasHydrated: (v) => set({ hasHydrated: v }),

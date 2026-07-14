@@ -348,8 +348,11 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
   const allItems    = useCartItems()
   const removeItem  = useCartStore(s => s.removeItem)
 
-  const { member, token } = useMemberStore()
+  const { member, token, clearMember } = useMemberStore()
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {}
+  // Token member hanya diterbitkan backend setelah OTP berhasil. Validitas token
+  // tetap diperiksa oleh MemberSessionSync dan middleware endpoint checkout.
+  const isWhatsAppVerified = Boolean(member && token)
 
   // ── Item selection (parsial checkout) ──────────────────
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(
@@ -429,6 +432,8 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
   const [notes,         setNotes]         = useState('')
   const [loading,       setLoading]       = useState(false)
   const [stockIssues,   setStockIssues]   = useState<StockIssue[] | null>(null)
+  const [pricingFailure, setPricingFailure] = useState<{ key:string; message:string } | null>(null)
+  const [pricingRetry,   setPricingRetry]   = useState(0)
 
   const [affiliateCode,     setAffiliateCode]     = useState<string | null>(null)
   const [affiliateName,     setAffiliateName]     = useState<string | null>(null)
@@ -479,18 +484,52 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
 
   const promoInputKey    = useMemo(() => JSON.stringify({ promoCode, affiliateCode, branches: promoBranches }), [promoBranches, promoCode, affiliateCode])
   const activePromoPreview = pricingReady && promoResult?.key === promoInputKey ? promoResult.preview : null
-  const promoLoading     = applyingPromo || (pricingReady && !activePromoPreview)
+  const activePricingFailure = pricingFailure?.key === promoInputKey ? pricingFailure.message : null
+  const promoLoading     = applyingPromo || (pricingReady && !activePromoPreview && !activePricingFailure)
   const grandTotal       = activePromoPreview?.grand_total ?? calculatedTotal
+  const paymentDisabled = loading
+    || promoLoading
+    || !activePromoPreview
+    || !pricingReady
+    || !isWhatsAppVerified
+    || Boolean(stockIssues?.length)
+  const paymentBlockReason = loading
+    ? 'Pesanan sedang diproses. Jangan tutup halaman ini.'
+    : !isWhatsAppVerified
+      ? 'Sesi verifikasi WhatsApp tidak aktif. Verifikasi ulang untuk melanjutkan pembayaran.'
+    : !pricingReady
+      ? 'Metode penerimaan atau pengiriman belum lengkap. Kembali dan periksa pilihan setiap cabang.'
+      : activePricingFailure
+        ? activePricingFailure
+        : promoLoading
+          ? 'Sedang memvalidasi harga, promo, dan stok terbaru.'
+          : !activePromoPreview
+            ? 'Ringkasan pembayaran belum tersedia.'
+            : stockIssues?.length
+              ? 'Perbarui produk yang stoknya berubah sebelum membayar.'
+              : null
 
   // ── Effects ──────────────────────────────────────────────
   useEffect(() => {
-    api.get('/branches').then(({ data }) => setBranches(Array.isArray(data) ? data : []))
+    const fetchBranches = () => {
+      api.get('/branches').then(({ data }) => setBranches(Array.isArray(data) ? data : []))
+    }
+
+    fetchBranches()
+    // operational_status (buka/tutup, jadwal eksekusi) berubah seiring waktu,
+    // jadi perlu di-refresh berkala kalau halaman checkout dibiarkan terbuka lama.
+    const interval = setInterval(fetchBranches, 60_000)
+
+    return () => clearInterval(interval)
   }, [])
 
   const requestPromoPreview = useCallback(async (code: string | null) => {
     const { data } = await api.post<PromotionPreview>('/promotions/preview', {
       promo_code: code, affiliate_code: affiliateCode, phone: phone ? '0'+phone : null, branches: promoBranches,
-    }, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    }, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      timeout: 15_000,
+    })
     return data
   }, [promoBranches, token, affiliateCode, phone])
 
@@ -502,10 +541,13 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
         if (cancelled) return
         setPromoResult({ key: promoInputKey, preview: data })
         setStockIssues(null)
+        setPricingFailure(null)
       })
       .catch(error => {
         if (cancelled) return
         setPromoResult(null)
+        const message = apiErrorMessage(error, 'Gagal memvalidasi harga dan promo. Periksa koneksi lalu coba lagi.')
+        setPricingFailure({ key: promoInputKey, message })
         const issues = stockIssuesFrom(error)
         if (issues?.length) {
           // Item di keranjang sudah tidak tersedia/stok kurang di cabang tsb.
@@ -513,10 +555,10 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
           setStockIssues(issues)
           return
         }
-        if (promoCode) { toast.error(apiErrorMessage(error,'Promo tidak lagi memenuhi syarat.')); setPromoCode(null) }
+        if (promoCode) { toast.error(message); setPromoCode(null) }
       })
     return () => { cancelled = true }
-  }, [pricingReady, promoCode, promoInputKey, requestPromoPreview])
+  }, [pricingReady, promoCode, promoInputKey, pricingRetry, requestPromoPreview])
 
   // ── Handlers ─────────────────────────────────────────────
   async function applyPromo(code: string) {
@@ -583,6 +625,11 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
   async function handleNextStep1() {
     if (!name) { toast.error('Isi nama penerima'); return }
     if (selectedItems.length === 0) { toast.error('Pilih setidaknya 1 item'); return }
+    if (!isWhatsAppVerified) {
+      toast.error('Verifikasi nomor WhatsApp terlebih dahulu.')
+      setShowOTP(true)
+      return
+    }
     if (member && token) {
       try {
         const { data } = await api.put('/member/profile',
@@ -590,12 +637,25 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
           { headers: { Authorization: `Bearer ${token}` } }
         )
         useMemberStore.getState().setMember(data, token)
-      } catch { toast.error('Gagal menyimpan profil'); return }
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          clearMember()
+          toast.error('Sesi berakhir. Verifikasi WhatsApp kembali untuk melanjutkan.')
+        } else {
+          toast.error('Gagal menyimpan profil')
+        }
+        return
+      }
     }
     setStep(2)
   }
 
   async function placeOrder() {
+    if (!isWhatsAppVerified) {
+      toast.error('Sesi verifikasi WhatsApp tidak valid. Verifikasi ulang untuk membayar.')
+      setStep(1)
+      return
+    }
     if (needsAddress && !address) { toast.error('Pilih alamat pengiriman'); return }
     if (!allBranchReady) { toast.error('Lengkapi metode pengiriman semua cabang'); return }
     setLoading(true)
@@ -653,6 +713,12 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
         onClose:   () => toast.info('Pembayaran dibatalkan.'),
       })
     } catch (error: unknown) {
+      if (axios.isAxiosError(error) && [401, 403].includes(error.response?.status ?? 0)) {
+        clearMember()
+        setStep(1)
+        toast.error('Sesi verifikasi berakhir. Silakan kirim OTP kembali.')
+        return
+      }
       const issues = stockIssuesFrom(error)
       if (issues?.length) setStockIssues(issues)
       else toast.error(apiErrorMessage(error,'Terjadi kesalahan.'))
@@ -697,27 +763,8 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
               </h2>
               <p style={{ fontSize:12, color:S.gray, marginBottom:20 }}>Verifikasi nomor HP untuk melanjutkan checkout</p>
 
-              <div style={{ marginBottom:16 }}>
-                <label style={{ fontSize:12, color:S.gray, display:'block', marginBottom:5, fontWeight:500 }}>Nomor WhatsApp *</label>
-                <div style={{ display:'flex', gap:8 }}>
-                  <div style={{ position:'relative', flex:1 }}>
-                    <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', fontSize:13, color:S.gray }}>+62</span>
-                    <input className="c-input" style={{ paddingLeft:44 }} placeholder="8xxxxxxxxxx" value={phone} onChange={e => setPhone(e.target.value.replace(/^0/,''))} disabled={!!member} />
-                  </div>
-                  {!member && (
-                    <button onClick={() => { if (!name.trim()) { toast.error('Isi nama penerima terlebih dahulu.'); return } setShowOTP(true) }}
-                      className="c-btn c-btn-primary c-btn-sm" style={{ flexShrink:0 }}>
-                      Kirim OTP
-                    </button>
-                  )}
-                </div>
-                {member
-                  ? <p style={{ fontSize:11, color:S.green, marginTop:4 }}>✓ Terverifikasi sebagai member</p>
-                  : <p style={{ fontSize:11, color:S.gray, marginTop:4 }}>Kode OTP akan dikirim via WhatsApp</p>
-                }
-              </div>
-
-              <div className="checkout-contact-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
+              <p style={{ fontSize:11, fontWeight:700, color:S.navy, letterSpacing:'.04em', marginBottom:10 }}>DATA PENERIMA</p>
+              <div className="checkout-contact-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:22 }}>
                 <div>
                   <label style={{ fontSize:12, color:S.gray, display:'block', marginBottom:5, fontWeight:500 }}>Nama Penerima *</label>
                   <input className="c-input" placeholder="Nama lengkap" value={name} onChange={e => setName(e.target.value)} />
@@ -728,15 +775,52 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
                 </div>
               </div>
 
+              <p style={{ fontSize:11, fontWeight:700, color:S.navy, letterSpacing:'.04em', marginBottom:10 }}>VERIFIKASI WHATSAPP</p>
+              <div style={{ marginBottom:16 }}>
+                <label style={{ fontSize:12, color:S.gray, display:'block', marginBottom:5, fontWeight:500 }}>Nomor WhatsApp *</label>
+                <div style={{ display:'flex', gap:8 }}>
+                  <div style={{ position:'relative', flex:1 }}>
+                    <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', fontSize:13, color:S.gray }}>+62</span>
+                    <input className="c-input" style={{ paddingLeft:44 }} placeholder="8xxxxxxxxxx" value={phone} onChange={e => setPhone(e.target.value.replace(/^0/,''))} disabled={isWhatsAppVerified} />
+                  </div>
+                  {!isWhatsAppVerified && (
+                    <button onClick={() => setShowOTP(true)}
+                      disabled={phone.length < 9 || !name.trim()}
+                      title={!name.trim() ? 'Isi nama penerima terlebih dahulu' : undefined}
+                      className="c-btn c-btn-primary c-btn-sm" style={{ flexShrink:0 }}>
+                      Kirim OTP
+                    </button>
+                  )}
+                </div>
+                {isWhatsAppVerified
+                  ? (
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginTop:6 }}>
+                      <p style={{ fontSize:11, color:S.green, fontWeight:700 }}>✓ Nomor WhatsApp terverifikasi</p>
+                      <button type="button" onClick={() => { clearMember(); setPhone(''); setStep(1) }} style={{ border:0, background:'none', color:S.red, fontSize:11, fontWeight:700, cursor:'pointer' }}>
+                        Ubah nomor
+                      </button>
+                    </div>
+                  )
+                  : phone.length >= 9 && !name.trim()
+                  ? <p role="status" style={{ fontSize:11, color:S.red, marginTop:6, fontWeight:600 }}>Isi nama penerima dulu untuk mengirim OTP ↑</p>
+                  : <p role="status" style={{ fontSize:11, color:S.red, marginTop:6, fontWeight:600 }}>Nomor belum diverifikasi · OTP wajib untuk melanjutkan</p>
+                }
+              </div>
+
               <div style={{ background:S.grayL, borderRadius:10, padding:12, marginBottom:16, display:'flex', gap:8 }}>
                 <span>💡</span>
                 <p style={{ fontSize:11, color:S.gray, lineHeight:1.6 }}>Promo aktif akan dihitung otomatis setelah memilih pengiriman.</p>
               </div>
 
-              <button onClick={handleNextStep1} disabled={!name || (!member && !phone) || selectedItems.length === 0}
+              <button onClick={handleNextStep1} disabled={!name || !isWhatsAppVerified || selectedItems.length === 0}
                 className="c-btn c-btn-primary c-btn-lg c-btn-full">
                 Lanjut ke Pengiriman →
               </button>
+              {!isWhatsAppVerified && phone.length >= 9 && (
+                <p style={{ fontSize:11, color:S.gray, marginTop:8, textAlign:'center' }}>
+                  Kirim dan masukkan OTP untuk mengaktifkan tombol lanjut.
+                </p>
+              )}
               {selectedItems.length === 0 && (
                 <p style={{ fontSize:11, color:S.red, marginTop:8, textAlign:'center' }}>
                   Pilih minimal 1 item di atas
@@ -844,11 +928,40 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
                 </div>
               )}
 
+              {paymentDisabled && paymentBlockReason && (
+                <div
+                  id="payment-block-reason"
+                  role={activePricingFailure || stockIssues?.length ? 'alert' : 'status'}
+                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, background:'rgba(232,160,32,.09)', border:'1px solid rgba(232,160,32,.32)', borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
+                  <p style={{ fontSize:12, lineHeight:1.55, color:'#7A4B00', fontWeight:600 }}>
+                    ⚠️ {paymentBlockReason}
+                  </p>
+                  {!loading && !isWhatsAppVerified && (
+                    <button type="button" onClick={() => setStep(1)} style={{ flexShrink:0, border:0, background:'none', color:S.red, fontSize:11, fontWeight:800, cursor:'pointer' }}>
+                      Verifikasi
+                    </button>
+                  )}
+                  {!loading && isWhatsAppVerified && !pricingReady && (
+                    <button type="button" onClick={() => setStep(2)} style={{ flexShrink:0, border:0, background:'none', color:S.red, fontSize:11, fontWeight:800, cursor:'pointer' }}>
+                      Periksa
+                    </button>
+                  )}
+                  {!loading && activePricingFailure && (
+                    <button type="button" onClick={() => { setPricingFailure(null); setPricingRetry(value => value + 1) }} style={{ flexShrink:0, border:0, background:'none', color:S.red, fontSize:11, fontWeight:800, cursor:'pointer' }}>
+                      Coba lagi
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div style={{ display:'flex', gap:10, marginBottom:14 }}>
                 <button onClick={() => setStep(2)} className="c-btn c-btn-ghost c-btn-md" style={{ flex:1 }}>← Kembali</button>
-                <button onClick={placeOrder} disabled={loading || promoLoading || !activePromoPreview}
+                <button onClick={placeOrder} disabled={paymentDisabled}
+                  aria-disabled={paymentDisabled}
+                  aria-describedby={paymentDisabled ? 'payment-block-reason' : undefined}
+                  title={paymentBlockReason ?? undefined}
                   className="c-btn c-btn-navy c-btn-md" style={{ flex:2 }}>
-                  {loading ? '⏳ Memproses...' : `💳 Bayar ${formatRupiah(grandTotal)}`}
+                  {loading ? '⏳ Memproses...' : promoLoading ? 'Menghitung total…' : `💳 Bayar ${formatRupiah(grandTotal)}`}
                 </button>
               </div>
 
@@ -868,7 +981,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
       {showOTP && (
         <OTPModal open={showOTP} phone={'0'+phone} name={name} email={email}
           onClose={() => setShowOTP(false)}
-          onVerified={() => { setShowOTP(false); setStep(2) }} />
+          onVerified={() => { setShowOTP(false) }} />
       )}
     </div>
   )

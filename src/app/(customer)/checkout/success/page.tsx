@@ -25,13 +25,13 @@ function SuccessContent() {
         fontSize:'clamp(32px,5vw,42px)', fontWeight:700,
         color:S.navy, marginBottom:8,
       }}>
-        Pesanan Berhasil!
+        Pesanan Dibuat
       </h1>
 
       <p className="animate-fade-up-3" style={{ color:S.gray, fontSize:14, marginBottom:28 }}>
         {orderNumbers.length > 1
           ? `${orderNumbers.length} pesanan dari cabang berbeda sedang diproses.`
-          : 'Pesananmu sedang diproses oleh tim kami.'
+          : 'Kami sedang memeriksa status pembayaran pesananmu.'
         }
       </p>
 
@@ -70,7 +70,7 @@ function SuccessContent() {
         }}>
           <p style={{ fontSize:11, color:S.gray, marginBottom:2 }}>Status saat ini</p>
           <p style={{ fontSize:13, fontWeight:600, color:S.green }}>
-            ✓ Pembayaran Diterima
+            Menunggu konfirmasi pembayaran
           </p>
         </div>
       </div>

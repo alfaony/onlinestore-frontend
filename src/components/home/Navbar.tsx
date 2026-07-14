@@ -19,7 +19,10 @@ export default function Navbar() {
   const setCartOpen = useCartStore(s => s.setCartOpen)
   const hasHydrated = useCartStore(s => s.hasHydrated)
   const member = useMemberStore(s => s.member)
+  const token = useMemberStore(s => s.token)
   const [mounted, setMounted] = useState(false)
+  // Client-only persisted member state must wait until hydration.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), [])
 
   const hasCart = hasHydrated && cartCount > 0
@@ -55,7 +58,7 @@ export default function Navbar() {
         {/* Right side */}
         <div className="flex shrink-0 items-center gap-2">
           {mounted && (
-            member ? (
+            member && token ? (
               <Link href="/account/profile" style={{
                 display:'flex', alignItems:'center', gap:6,
                 padding:'6px 12px', background:'rgba(27,58,107,0.06)',

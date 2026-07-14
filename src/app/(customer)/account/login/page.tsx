@@ -155,7 +155,6 @@ export default function LoginPage() {
                   placeholder="Nama lengkap"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  autoFocus
                 />
               </div>
             )}

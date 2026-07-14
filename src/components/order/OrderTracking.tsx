@@ -37,10 +37,14 @@ interface TrackingPromotion {
 export interface TrackingOrder {
   order_number: string
   status: string
+  order_status: string
   payment_status: string
+  fulfillment_status: string | null
   approval_status: string
   fulfillment_type: 'delivery' | 'pickup'
-  branch?: { name: string }
+  branch?: { name: string; address?: string; phone?: string }
+  payment_type?: string | null
+  status_labels: { payment: string; order: string; fulfillment: string }
   created_at: string
   subtotal: number
   fulfilled_subtotal: number
@@ -133,9 +137,9 @@ function orderProgress(order: TrackingOrder) {
   ]
 
   const paymentDone = order.payment_status === 'paid'
-  const storeDone = ['approved', 'modified'].includes(order.approval_status)
-  const delivered = order.status === 'delivered' || order.shipping?.status === 'delivered'
-  const packagePicked = order.status === 'shipped'
+  const storeDone = ['confirmed','processing','completed'].includes(order.order_status)
+  const delivered = ['delivered','picked_up'].includes(order.fulfillment_status ?? '')
+  const packagePicked = order.fulfillment_status === 'shipped'
     || ['picked', 'in_transit', 'dropping_off'].includes(order.shipping?.status ?? '')
 
   let currentIndex = 0
@@ -143,7 +147,7 @@ function orderProgress(order: TrackingOrder) {
   if (paymentDone && storeDone) currentIndex = 2
 
   if (isPickup) {
-    if (order.shipping?.status === 'ready_for_pickup') currentIndex = 3
+    if (order.fulfillment_status === 'ready_for_pickup') currentIndex = 3
     if (delivered) currentIndex = 4
   } else {
     if (packagePicked) currentIndex = 3
@@ -154,7 +158,9 @@ function orderProgress(order: TrackingOrder) {
     ? 'Selesaikan pembayaran melalui Midtrans untuk melanjutkan pesanan.'
     : !storeDone
       ? 'Pembayaran diterima. Toko sedang mengecek ketersediaan semua item.'
-      : shippingProgressLabel(order.shipping?.status)
+      : isPickup
+        ? ({ preparing:'Pesanan sedang disiapkan oleh cabang.', ready_for_pickup:'Pesanan sudah siap. Periksa WhatsApp untuk PIN pengambilan.', picked_up:'Pesanan sudah diserahkan.' } as Record<string,string>)[order.fulfillment_status ?? ''] ?? 'Pesanan sedang diproses.'
+        : shippingProgressLabel(order.shipping?.status)
 
   return { steps, currentIndex, currentDescription }
 }
@@ -300,7 +306,7 @@ function RefundCard({ order }: { order: TrackingOrder }) {
 }
 
 export default function OrderTracking({ order }: { order: TrackingOrder }) {
-  const isCancelled  = order.status === 'cancelled'
+  const isCancelled  = order.order_status === 'cancelled'
   const progress = orderProgress(order)
   const currentStep = progress.steps[progress.currentIndex]
   const summaryRows: Array<[string, number]> = [
@@ -333,6 +339,19 @@ export default function OrderTracking({ order }: { order: TrackingOrder }) {
         <p style={{ fontSize:13, color:S.gray }}>
           {order.branch?.name} · {order.created_at}
         </p>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:8, marginBottom:20 }}>
+        {[
+          ['Pembayaran', order.status_labels.payment, order.payment_status === 'paid' ? S.green : S.gold],
+          ['Pesanan', order.status_labels.order, isCancelled ? S.red : S.navy],
+          [order.fulfillment_type === 'pickup' ? 'Pengambilan' : 'Pengiriman', order.status_labels.fulfillment, S.navy],
+        ].map(([label, value, color]) => (
+          <div key={label} style={{ minWidth:0, background:'#fff', border:`1px solid ${S.creamDp}`, borderRadius:12, padding:'11px 10px' }}>
+            <p style={{ fontSize:10, color:S.gray, marginBottom:4 }}>{label}</p>
+            <p style={{ fontSize:11, lineHeight:1.35, fontWeight:800, color }}>{value}</p>
+          </div>
+        ))}
       </div>
 
       {/* Status pesanan utama */}

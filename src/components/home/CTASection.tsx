@@ -1,10 +1,10 @@
-import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
+import Link from 'next/link'
 
 export default function CTASection() {
   return (
     <section className="bg-sr-red py-12 md:py-14">
-      <div className="c-app flex flex-col items-start justify-between gap-7 sm:flex-row sm:items-center">
+      <div className="c-app flex flex-col items-start justify-between gap-7 sm:flex-row sm:items-center sm:justify-between py-5 md:py-5 py-6">
         <div className="max-w-xl">
           <p className="mb-2 text-[11px] font-bold uppercase tracking-[.18em] text-white/55">Pesan hari ini</p>
           <h2 className="font-display mb-2 text-[34px] font-bold leading-tight text-white md:text-[40px]">

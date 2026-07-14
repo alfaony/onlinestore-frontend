@@ -1,5 +1,6 @@
 import CartProvider from '@/components/cart/CartProvider'
 import AffiliateRefSync from '@/components/customer/AffiliateRefSync'
+import MemberSessionSync from '@/components/customer/MemberSessionSync'
 import AnnouncementBar from '@/components/home/AnnouncementBar'
 import Footer from '@/components/home/Footer'
 import Navbar from '@/components/home/Navbar'
@@ -10,6 +11,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
   return (
     <CartProvider>
       <AffiliateRefSync />
+      <MemberSessionSync />
       <Script
         src={
           process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === 'true'

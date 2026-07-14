@@ -149,6 +149,17 @@
   cursor: pointer;
 }
 
+.errorMessage {
+  margin: -4px 0 14px;
+  padding: 9px 11px;
+  border: 1px solid rgba(196, 30, 58, .2);
+  border-radius: 9px;
+  color: #991b1b;
+  background: rgba(196, 30, 58, .06);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 @media (max-width: 420px) {
   .content {
     padding: 20px 16px;

@@ -18,6 +18,7 @@ export default function BranchSelectorModal({ product, onClose }: Props) {
   const [loadedProductId, setLoadedProductId] = useState<string | null>(null)
   const activeBranch = useCartStore(s => s.activeBranch)
   const setActiveBranch = useCartStore(s => s.setActiveBranch)
+  const setSwitchingBranch = useCartStore(s => s.setSwitchingBranch)
   const addItem          = useCartStore(s => s.addItem)
   const router = useRouter()
   const loading = loadedProductId !== product.id
@@ -49,6 +50,7 @@ export default function BranchSelectorModal({ product, onClose }: Props) {
     if (window.location.pathname === '/menu') {
       const params = new URLSearchParams(window.location.search)
       params.set('branch_id', branch.id)
+      setSwitchingBranch(true)
       router.replace(`/menu?${params.toString()}`, { scroll: false })
     }
   }

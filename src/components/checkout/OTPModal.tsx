@@ -32,6 +32,7 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
   const [step, setStep] = useState<'phone'|'otp'>('phone')
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [timer, setTimer] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [turnstileToken, setTurnstileToken] = useState('')
@@ -82,6 +83,7 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
     setOtp('')
     setTimer(0)
     setTurnstileToken('')
+    setError('')
   }
 
   function closeModal() {
@@ -96,6 +98,7 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
 
   async function requestOtp() {
     if (!turnstileToken) { toast.error('Selesaikan verifikasi dulu'); return }
+    setError('')
     setLoading(true)
     try {
       const response = await api.post('/auth/request-otp', {
@@ -111,13 +114,16 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
         toast.success('OTP dikirim ke WhatsApp')
       }
     } catch (error) {
-      toast.error(errorMessage(error, 'Gagal mengirim OTP.'))
+      const message = errorMessage(error, 'Gagal mengirim OTP.')
+      setError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
   }
 
   async function verifyOtp() {
+    setError('')
     setLoading(true)
     try {
       const { data } = await api.post('/auth/verify-otp', {
@@ -133,7 +139,10 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
       resetModal()
       onVerified()
     } catch (error: unknown) {
-      toast.error(errorMessage(error, 'OTP tidak valid.'))
+      const message = errorMessage(error, 'OTP tidak valid.')
+      setError(message)
+      setOtp('')
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -195,6 +204,8 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
               options={{ theme:'light', language:'id', size:'flexible' }}
             />
 
+            {error && <p role="alert" className={styles.errorMessage}>{error}</p>}
+
             <div className={styles.actions}>
               <button type="button" onClick={closeModal} className="c-btn c-btn-ghost c-btn-md">Batal</button>
               <button type="button" onClick={requestOtp} disabled={loading || !turnstileToken} className="c-btn c-btn-primary c-btn-md">
@@ -229,6 +240,7 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
                 </button>
               )}
             </div>
+            {error && <p role="alert" className={styles.errorMessage}>{error}</p>}
             <button type="button" onClick={verifyOtp} disabled={otp.length < 6 || loading} className="c-btn c-btn-primary c-btn-lg c-btn-full">
               {loading ? 'Memverifikasi…' : 'Verifikasi & lanjutkan'}
             </button>

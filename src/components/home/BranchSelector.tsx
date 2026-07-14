@@ -21,6 +21,7 @@ export default function BranchSelector() {
   const [cityName,  setCityName]  = useState('')
 
   const setActiveBranch = useCartStore(s => s.setActiveBranch)
+  const setSwitchingBranch = useCartStore(s => s.setSwitchingBranch)
 
   async function fetchBranches(lat?: number, lng?: number) {
     setLoading(true)
@@ -73,6 +74,7 @@ export default function BranchSelector() {
 
   function handleSelect(branch: BranchWithDistance) {
     setActiveBranch({ id: branch.id, name: branch.name })
+    setSwitchingBranch(true)
     router.push(`/menu?branch_id=${branch.id}`)
   }
 

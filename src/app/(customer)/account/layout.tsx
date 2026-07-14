@@ -33,7 +33,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   if (pathname === '/account/login') return <>{children}</>
 
   // Belum hydrate / belum login → jangan render
-  if (!member) return null
+  if (!member || !token) return null
 
   return (
     <div className="c-app account-shell">

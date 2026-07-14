@@ -9,6 +9,7 @@ import {
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
+import BranchPill from './BranchPill'
 
 const LINKS = [['/', 'Beranda'], ['/menu', 'Menu'], ['/artikel', 'Artikel'], ['/order', 'Pesanan Saya']] as const
 
@@ -18,6 +19,8 @@ export default function Navbar() {
   const pathname = usePathname()
   const [mobileOpen, setMobile] = useState(false)
   const activeBranch = useCartStore(s => s.activeBranch)
+  const switchingBranch = useCartStore(s => s.switchingBranch)
+  const setSwitchingBranch = useCartStore(s => s.setSwitchingBranch)
   const hasHydrated = useCartStore(s => s.hasHydrated)
 
   const cartCount   = useCartCount()
@@ -33,20 +36,17 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/"><Logo height={52} variant="header" /></Link>
 
-        {hasHydrated && activeBranch && (
-        <div style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px', background:'rgba(27,58,107,0.08)', borderRadius:8, fontSize:11 }}>
-          <span>📍</span>
-          <span style={{ color:'#1B3A6B', fontWeight:500 }}>{activeBranch.name}</span>
-          <button
-            onClick={() => {
+        {hasHydrated && (activeBranch || switchingBranch) && (
+          <BranchPill
+            loading={switchingBranch}
+            name={activeBranch?.name}
+            onClear={() => {
+              setSwitchingBranch(true)
               useCartStore.getState().setActiveBranch(null)
               router.push('/menu')
             }}
-            style={{ background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:12, lineHeight:1 }}>
-            ×
-          </button>
-        </div>
-      )}
+          />
+        )}
 
 
         {/* Desktop pill tabs */}
