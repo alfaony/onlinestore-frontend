@@ -4,7 +4,7 @@ import StarRatingInput from '@/components/ui/StarRatingInput'
 import api from '@/lib/api'
 import { storageUrl } from '@/lib/utils'
 import axios from 'axios'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -75,6 +75,7 @@ function formatCountdown(seconds: number) {
 }
 
 export default function ReviewPage({ orderId }: { orderId: string }) {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const t = searchParams.get('t')
 
@@ -84,6 +85,7 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
   const [seconds, setSeconds] = useState(SESSION_TTL_SECONDS)
   const [expired, setExpired] = useState(false)
   const [itemStates, setItemStates] = useState<Record<string, ItemFormState>>({})
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   function startCountdown(expiresIn: number) {
@@ -166,7 +168,7 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
       })
 
       updateItem(item.order_item_id, { saving: false, saved: true, photoFile: null })
-      toast.success('Terima kasih! Ulasan kamu tersimpan.')
+      setShowSuccessModal(true)
     } catch (error) {
       updateItem(item.order_item_id, { saving: false })
       const message = errorMessage(error, 'Gagal mengirim ulasan.')
@@ -293,6 +295,28 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
           )
         })}
       </div>
+
+      {showSuccessModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(26,26,46,0.5)',
+            display: 'grid', placeItems: 'center', zIndex: 1000, padding: 20,
+          }}
+        >
+          <div style={{ background: '#fff', borderRadius: 16, padding: 28, maxWidth: 360, width: '100%', textAlign: 'center' }}>
+            <p style={{ fontSize: 32, marginBottom: 10 }}>✓</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: S.dark, marginBottom: 6 }}>Ulasan berhasil dikirim</p>
+            <p style={{ fontSize: 12, color: S.gray, marginBottom: 20 }}>Terima kasih sudah membagikan pengalamanmu.</p>
+            <button
+              type="button"
+              onClick={() => router.replace('/')}
+              className="c-btn c-btn-primary c-btn-md c-btn-full"
+            >
+              Kembali ke Beranda
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
