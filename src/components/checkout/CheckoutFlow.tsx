@@ -37,7 +37,8 @@ interface StockIssue { message: string; branchIndex?: number; itemIndex?: number
 
 function apiErrorMessage(error: unknown, fallback: string) {
   if (!axios.isAxiosError<ApiErrorData>(error)) return fallback
-  return error.response?.data?.errors?.promo_code?.[0]
+  return error.response?.data?.errors?.promo_codes?.[0]
+    ?? error.response?.data?.errors?.promo_code?.[0]
     ?? error.response?.data?.errors?.items?.join(' ')
     ?? Object.values(error.response?.data?.errors ?? {}).flat()[0]
     ?? error.response?.data?.message
@@ -426,7 +427,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grouped.map(g => g.branchId).join(',')])
 
-  const [promoCode,     setPromoCode]     = useState<string | null>(null)
+  const [promoCodes,    setPromoCodes]    = useState<string[]>([])
   const [promoResult,   setPromoResult]   = useState<{ key:string; preview:PromotionPreview } | null>(null)
   const [applyingPromo, setApplyingPromo] = useState(false)
   const [notes,         setNotes]         = useState('')
@@ -482,7 +483,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
     }
   }), [branchStates, grouped])
 
-  const promoInputKey    = useMemo(() => JSON.stringify({ promoCode, affiliateCode, branches: promoBranches }), [promoBranches, promoCode, affiliateCode])
+  const promoInputKey    = useMemo(() => JSON.stringify({ promoCodes, affiliateCode, branches: promoBranches }), [promoBranches, promoCodes, affiliateCode])
   const activePromoPreview = pricingReady && promoResult?.key === promoInputKey ? promoResult.preview : null
   const activePricingFailure = pricingFailure?.key === promoInputKey ? pricingFailure.message : null
   const promoLoading     = applyingPromo || (pricingReady && !activePromoPreview && !activePricingFailure)
@@ -523,9 +524,13 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
     return () => clearInterval(interval)
   }, [])
 
-  const requestPromoPreview = useCallback(async (code: string | null) => {
+  const requestPromoPreview = useCallback(async (codes: string[]) => {
     const { data } = await api.post<PromotionPreview>('/promotions/preview', {
-      promo_code: code, affiliate_code: affiliateCode, phone: phone ? '0'+phone : null, branches: promoBranches,
+      promo_code: codes[0] ?? null,
+      promo_codes: codes,
+      affiliate_code: affiliateCode,
+      phone: phone ? '0'+phone : null,
+      branches: promoBranches,
     }, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       timeout: 15_000,
@@ -536,7 +541,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
   useEffect(() => {
     if (!pricingReady) return
     let cancelled = false
-    requestPromoPreview(promoCode)
+    requestPromoPreview(promoCodes)
       .then(data => {
         if (cancelled) return
         setPromoResult({ key: promoInputKey, preview: data })
@@ -555,19 +560,21 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
           setStockIssues(issues)
           return
         }
-        if (promoCode) { toast.error(message); setPromoCode(null) }
+        if (promoCodes.length > 0) { toast.error(message); setPromoCodes([]) }
       })
     return () => { cancelled = true }
-  }, [pricingReady, promoCode, promoInputKey, pricingRetry, requestPromoPreview])
+  }, [pricingReady, promoCodes, promoInputKey, pricingRetry, requestPromoPreview])
 
   // ── Handlers ─────────────────────────────────────────────
   async function applyPromo(code: string) {
     if (!pricingReady) { toast.error('Pilih pengiriman terlebih dahulu.'); return false }
+    if (promoCodes.includes(code)) { toast.info(`Promo ${code} sudah digunakan.`); return false }
     setApplyingPromo(true)
     try {
-      const preview = await requestPromoPreview(code)
-      setPromoResult({ key: JSON.stringify({ promoCode:code, affiliateCode, branches:promoBranches }), preview })
-      setPromoCode(code)
+      const nextCodes = [...promoCodes, code]
+      const preview = await requestPromoPreview(nextCodes)
+      setPromoResult({ key: JSON.stringify({ promoCodes:nextCodes, affiliateCode, branches:promoBranches }), preview })
+      setPromoCodes(nextCodes)
       toast.success(`Promo ${code} berhasil diterapkan.`)
       return true
     } catch (error) {
@@ -662,7 +669,10 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
     setStockIssues(null)
     try {
       const { data } = await api.post('/orders', {
-        phone: '0'+phone, name, email, notes, promo_code: promoCode, affiliate_code: affiliateCode,
+        phone: '0'+phone, name, email, notes,
+        promo_code: promoCodes[0] ?? null,
+        promo_codes: promoCodes,
+        affiliate_code: affiliateCode,
         address: needsAddress && address ? {
           address: address.address, detail: address.detail,
           province_name: address.province_name, regency_name: address.regency_name,
@@ -905,7 +915,13 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
                 </div>
               )}
 
-              <VoucherInput preview={activePromoPreview} promoCode={promoCode} loading={promoLoading} onApplyCode={applyPromo} onRemoveCode={() => setPromoCode(null)} />
+              <VoucherInput
+                preview={activePromoPreview}
+                promoCodes={promoCodes}
+                loading={promoLoading}
+                onApplyCode={applyPromo}
+                onRemoveCode={code => setPromoCodes(current => current.filter(item => item !== code))}
+              />
 
               <AffiliateCodeInput affiliateName={affiliateName} code={affiliateCode} loading={applyingAffiliate} onApplyCode={applyAffiliateCode} onRemoveCode={removeAffiliateCode} />
 

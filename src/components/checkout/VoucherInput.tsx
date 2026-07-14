@@ -11,10 +11,10 @@ const S = {
 
 interface Props {
   preview: PromotionPreview | null
-  promoCode: string | null
+  promoCodes: string[]
   loading: boolean
   onApplyCode: (code: string) => Promise<boolean>
-  onRemoveCode: () => void
+  onRemoveCode: (code: string) => void
 }
 
 function targetLabel(promo: PromotionSummary) {
@@ -25,24 +25,28 @@ function targetLabel(promo: PromotionSummary) {
   return 'Promo pengiriman'
 }
 
-export default function VoucherInput({ preview, promoCode, loading, onApplyCode, onRemoveCode }: Props) {
-  const [code, setCode] = useState(promoCode ?? '')
+export default function VoucherInput({ preview, promoCodes, loading, onApplyCode, onRemoveCode }: Props) {
+  const [code, setCode] = useState('')
 
   async function apply(codeToApply = code) {
     const normalized = codeToApply.trim().toUpperCase()
     if (!normalized) return
 
     const success = await onApplyCode(normalized)
-    if (success) setCode(normalized)
+    if (success) setCode('')
   }
 
   const offers = preview?.available_promotions.filter(
     promo => promo.eligible && !promo.applied
   ) ?? []
+  const appliedCodePromos = preview?.applied_promotions.filter(
+    promo => promo.application_mode === 'code' && promo.code && promoCodes.includes(promo.code)
+  ) ?? []
+  const currentCodesAreStackable = appliedCodePromos.every(promo => promo.is_stackable)
+  const canAddCode = promoCodes.length === 0 || currentCodesAreStackable
 
-  function remove() {
-    setCode('')
-    onRemoveCode()
+  function remove(codeToRemove: string) {
+    onRemoveCode(codeToRemove)
   }
 
   return (
@@ -66,19 +70,19 @@ export default function VoucherInput({ preview, promoCode, loading, onApplyCode,
             </div>
             <p style={{ fontSize: 11, color: S.green, marginTop: 3 }}>Hemat {formatRupiah(promo.discount_amount)} · {targetLabel(promo)}</p>
           </div>
-          {promo.application_mode === 'code' && promoCode && (
-            <button type="button" onClick={remove} aria-label="Lepas kode promo" style={{ background: 'none', border: 0, color: S.gray, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+          {promo.application_mode === 'code' && promo.code && promoCodes.includes(promo.code) && (
+            <button type="button" onClick={() => remove(promo.code!)} aria-label={`Lepas kode promo ${promo.code}`} style={{ background: 'none', border: 0, color: S.gray, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
           )}
         </div>
       ))}
 
-      {!promoCode && (
+      {canAddCode && (
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           <input
             value={code}
             onChange={event => setCode(event.target.value.toUpperCase())}
             onKeyDown={event => event.key === 'Enter' && apply()}
-            placeholder="Punya kode promo?"
+            placeholder={promoCodes.length > 0 ? 'Tambah kode promo' : 'Punya kode promo?'}
             className="c-input"
             style={{ flex: 1, textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.6px' }}
           />
@@ -111,8 +115,13 @@ export default function VoucherInput({ preview, promoCode, loading, onApplyCode,
                       </span>
                     </div>
                   </div>
-                  {promo.application_mode === 'code' && promo.code && promo.eligible && !promoCode && (
-                    <button type="button" onClick={() => apply(promo.code ?? '')} disabled={loading} className="c-btn c-btn-primary c-btn-sm" style={{ alignSelf: 'center', flexShrink: 0 }}>
+                  {promo.application_mode === 'code' && promo.code && promo.eligible && (
+                    <button
+                      type="button"
+                      onClick={() => apply(promo.code ?? '')}
+                      disabled={loading || promoCodes.includes(promo.code) || (promoCodes.length > 0 && (!promo.is_stackable || !currentCodesAreStackable))}
+                      className="c-btn c-btn-primary c-btn-sm"
+                      style={{ alignSelf: 'center', flexShrink: 0 }}>
                       Pakai
                     </button>
                   )}
