@@ -38,6 +38,18 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
   const [turnstileToken, setTurnstileToken] = useState('')
   const [phoneStatus, setPhoneStatus]       = useState<'idle'|'new'|'exists'>('idle')
   const [checkingPhone, setCheckingPhone]   = useState(false)
+  const [otpPhone, setOtpPhone]             = useState('')
+
+  // Nomor berubah setelah OTP sempat diminta (mis. user edit nomor lalu
+  // buka modal lagi) — sesi OTP lama sudah tidak relevan, mulai dari awal.
+  // (Adjust state saat render, bukan di effect — lihat react.dev/learn/you-might-not-need-an-effect.
+  // Interval lama otomatis dibersihkan oleh startTimer()/resetModal() berikutnya.)
+  if (step === 'otp' && phone !== otpPhone) {
+    setStep('phone')
+    setOtp('')
+    setTimer(0)
+    setError('')
+  }
 
   useEffect(() => {
     if (!phone || phone.length < 9) return
@@ -81,13 +93,17 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
     intervalRef.current = null
     setStep('phone')
     setOtp('')
+    setOtpPhone('')
     setTimer(0)
     setTurnstileToken('')
     setError('')
   }
 
   function closeModal() {
-    resetModal()
+    // Kalau OTP sudah pernah diminta (step 'otp'), jangan reset — biar saat
+    // modal dibuka lagi, user langsung diarahkan ke form isi kode, bukan
+    // request OTP baru (mencegah kena rate-limit & turnstile diminta ulang).
+    if (step === 'phone') resetModal()
     onClose()
   }
 
@@ -107,6 +123,7 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
       })
       setTurnstileToken('')
       setStep('otp')
+      setOtpPhone(phone)
       startTimer()
       if (response.data?.otp) {
         toast.info(`OTP dev: ${response.data.otp}`)

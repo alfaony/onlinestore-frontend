@@ -994,11 +994,12 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
         <Sidebar grouped={grouped} branchStates={branchStates} preview={activePromoPreview} />
       </div>
 
-      {showOTP && (
-        <OTPModal open={showOTP} phone={'0'+phone} name={name} email={email}
-          onClose={() => setShowOTP(false)}
-          onVerified={() => { setShowOTP(false) }} />
-      )}
+      {/* Tetap mounted meski ditutup, supaya sesi OTP yang sudah diminta (timer,
+          step, kode) tidak hilang — buka lagi langsung ke form isi kode, bukan
+          request OTP baru. */}
+      <OTPModal open={showOTP} phone={'0'+phone} name={name} email={email}
+        onClose={() => setShowOTP(false)}
+        onVerified={() => { setShowOTP(false) }} />
     </div>
   )
 }
