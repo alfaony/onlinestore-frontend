@@ -13,7 +13,10 @@ interface Props {
 export default function Modal({ open, onClose, titleId, children, maxWidth = 420 }: Props) {
   const panelRef = useRef<HTMLElement>(null)
   const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   useEffect(() => {
     if (!open) return
@@ -33,7 +36,6 @@ export default function Modal({ open, onClose, titleId, children, maxWidth = 420
       window.removeEventListener('keydown', onKeyDown)
       previouslyFocused?.focus()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   if (!open) return null

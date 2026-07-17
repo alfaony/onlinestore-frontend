@@ -71,14 +71,14 @@ export default async function MenuPage({ searchParams }: Props) {
 
       {/* Branch Banner */}
       {activeBranch && (
-        <div style={{
+        <div className="menu-branch-banner" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '12px 16px',
           background: 'rgba(27,58,107,0.06)',
           border: '1px solid rgba(27,58,107,0.15)',
           borderRadius: 12, marginBottom: 28,
         }}>
-          <p style={{ fontSize: 13, color: '#1B3A6B' }}>
+          <p className="menu-branch-banner__copy" style={{ fontSize: 13, color: '#1B3A6B' }}>
             📍 Menu dari <strong>{activeBranch.name}</strong>
             {activeBranch.operational_status && (
               <span style={{ display:'block', marginTop:4, fontSize:11, color:activeBranch.operational_status.code === 'open' ? '#047857' : '#92600A' }}>
@@ -86,7 +86,7 @@ export default async function MenuPage({ searchParams }: Props) {
               </span>
             )}
           </p>
-          <Link href="/menu" style={{ fontSize: 11, color: '#C41E3A', fontWeight: 600, textDecoration: 'none' }}>
+          <Link className="menu-branch-banner__action" href="/menu" style={{ fontSize: 11, color: '#C41E3A', fontWeight: 600, textDecoration: 'none' }}>
             Ganti Cabang ×
           </Link>
         </div>

@@ -40,10 +40,10 @@ function MiniToggle({ value, onChange, canPickup }: {
   canPickup: boolean
 }) {
   return (
-    <div style={{ display:'flex', background:S.grayL, borderRadius:8, padding:3, gap:3 }}>
+    <div className="branch-fulfillment-toggle" style={{ display:'flex', background:S.grayL, borderRadius:8, padding:3, gap:3 }}>
       {[
-        { key:'delivery' as const, icon:'🚚', label:'Delivery' },
-        { key:'pickup'   as const, icon:'🏃', label:'Pickup' },
+        { key:'delivery' as const, icon:'🚚', label:'Diantar' },
+        { key:'pickup'   as const, icon:'🏃', label:'Ambil sendiri' },
       ].map(opt => {
         const active = value === opt.key
         const disabled = opt.key === 'pickup' && !canPickup
@@ -51,7 +51,7 @@ function MiniToggle({ value, onChange, canPickup }: {
           <button
             key={opt.key}
             disabled={disabled}
-            title={disabled ? 'Pickup tidak tersedia karena ada produk tanpa opsi Frozen.' : undefined}
+            title={disabled ? 'Ambil sendiri tidak tersedia karena ada produk tanpa opsi Frozen.' : undefined}
             onClick={e => { e.stopPropagation(); if (!disabled) onChange(opt.key) }}
             style={{
               display:'flex', alignItems:'center', gap:5,
@@ -85,11 +85,11 @@ function BranchStatusSummary({ state }: {
       return (
         <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:S.green }}>
           <span>✓</span>
-          <span>Pickup {label} {time} · Gratis ongkir</span>
+          <span>Ambil sendiri {label} {time} · Gratis ongkir</span>
         </div>
       )
     }
-    return <span style={{ fontSize:11, color:S.gold }}>⏳ Pilih jadwal pickup</span>
+    return <span style={{ fontSize:11, color:S.gold }}>⏳ Pilih jadwal pengambilan</span>
   }
 
   if (state.rate) {
@@ -167,6 +167,7 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
 
       {/* ── Header — klik untuk collapse/expand ── */}
       <div
+        className="branch-shipping-header"
         onClick={() => setExpanded(v => !v)}
         style={{
           display:'flex', alignItems:'center', justifyContent:'space-between',
@@ -201,7 +202,7 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
         </div>
 
         {/* Right: toggle + chevron */}
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+        <div className="branch-shipping-controls" style={{ display:'flex', alignItems:'center', gap:8 }}>
           <MiniToggle value={state.fulfillment} onChange={setFulfillment} canPickup={allSupportFrozen} />
           <span style={{
             color:S.gray, fontSize:16, lineHeight:1,

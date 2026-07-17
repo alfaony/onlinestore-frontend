@@ -14,7 +14,7 @@ const S = {
   green: '#10B981', creamDp: '#EDD9B8', creamD: '#F5EDD9',
 }
 
-const SESSION_TTL_SECONDS = 5 * 60
+const SESSION_TTL_SECONDS = 20 * 60
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 
 interface Aspect { id: string; name: string; slug: string }
@@ -64,7 +64,7 @@ function buildInitialItemState(item: ReviewItem): ItemFormState {
     photoFile: null,
     photoPreview: item.existing_review?.photo_url ?? null,
     saving: false,
-    saved: false,
+    saved: Boolean(item.existing_review),
   }
 }
 
@@ -116,7 +116,12 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
     try {
       const { data } = await api.post<SessionResponse>(`/reviews/${orderId}/session`, { t })
       setSession(data)
-      setItemStates(Object.fromEntries(data.items.map(item => [item.order_item_id, buildInitialItemState(item)])))
+      setItemStates(current => Object.fromEntries(data.items.map(item => [
+        item.order_item_id,
+        current[item.order_item_id]
+          ? { ...current[item.order_item_id], saving:false }
+          : buildInitialItemState(item),
+      ])))
       startCountdown(data.expires_in)
     } catch (error) {
       setFatalError(errorMessage(error, 'Link review tidak valid atau sudah kadaluarsa.'))
@@ -168,7 +173,19 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
       })
 
       updateItem(item.order_item_id, { saving: false, saved: true, photoFile: null })
-      setShowSuccessModal(true)
+      const nextItem = session.items.find(candidate =>
+        candidate.order_item_id !== item.order_item_id
+        && !itemStates[candidate.order_item_id]?.saved
+      )
+
+      if (!nextItem) {
+        setShowSuccessModal(true)
+      } else {
+        toast.success('Ulasan tersimpan', { description:'Lanjutkan ke produk berikutnya.' })
+        window.setTimeout(() => {
+          document.getElementById(`review-item-${nextItem.order_item_id}`)?.scrollIntoView({ behavior:'smooth', block:'start' })
+        }, 150)
+      }
     } catch (error) {
       updateItem(item.order_item_id, { saving: false })
       const message = errorMessage(error, 'Gagal mengirim ulasan.')
@@ -202,6 +219,9 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
 
   if (!session) return null
 
+  const savedCount = session.items.filter(item => itemStates[item.order_item_id]?.saved).length
+  const reviewComplete = savedCount === session.items.length
+
   return (
     <div className="c-app" style={{ paddingTop: 44, paddingBottom: 60, maxWidth: 560, margin: '0 auto' }}>
       <div style={{ marginBottom: 20 }}>
@@ -212,10 +232,20 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
         <p style={{ fontSize: 13, color: S.gray }}>Ceritakan pengalamanmu untuk tiap produk di bawah ini.</p>
       </div>
 
+      <div style={{ background:'#fff', border:`1px solid ${S.creamDp}`, borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', gap:12, marginBottom:8, fontSize:12 }}>
+          <span style={{ color:S.navy, fontWeight:800 }}>Progres penilaian</span>
+          <span style={{ color:reviewComplete ? S.green : S.gray, fontWeight:700 }}>{savedCount} dari {session.items.length} produk</span>
+        </div>
+        <div style={{ height:7, overflow:'hidden', borderRadius:99, background:S.grayL }}>
+          <div style={{ width:`${session.items.length ? (savedCount / session.items.length) * 100 : 0}%`, height:'100%', borderRadius:99, background:reviewComplete ? S.green : S.red, transition:'width .25s ease' }} />
+        </div>
+      </div>
+
       {!expired ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, background: 'rgba(27,58,107,.06)', marginBottom: 20, fontSize: 12 }}>
-          <span style={{ color: S.navy, fontWeight: 700 }}>⏱ Sesi berlaku {formatCountdown(seconds)}</span>
-          <span style={{ color: S.gray }}>— simpan ulasan sebelum waktu habis</span>
+          <span style={{ color: seconds < 120 ? S.red : S.navy, fontWeight: 700 }}>⏱ Sesi aman {formatCountdown(seconds)}</span>
+          <span style={{ color: S.gray }}>— draft tetap tersimpan saat sesi diperbarui</span>
         </div>
       ) : (
         <div style={{ padding: 20, borderRadius: 16, background: '#fff', border: `1.5px solid rgba(232,160,32,0.3)`, marginBottom: 20, textAlign: 'center' }}>
@@ -226,11 +256,12 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, opacity: expired ? 0.5 : 1, pointerEvents: expired ? 'none' : 'auto' }}>
-        {session.items.map(item => {
+        {session.items.map((item, itemIndex) => {
           const state = itemStates[item.order_item_id]
           if (!state) return null
           return (
-            <div key={item.order_item_id} style={{ background: '#fff', borderRadius: 16, padding: 18, border: `1px solid ${S.creamDp}` }}>
+            <div id={`review-item-${item.order_item_id}`} key={item.order_item_id} style={{ scrollMarginTop:90, background: '#fff', borderRadius: 16, padding: 18, border: `1px solid ${state.saved ? 'rgba(16,185,129,.35)' : S.creamDp}` }}>
+              <p style={{ color:S.red, fontSize:10, fontWeight:800, letterSpacing:1, marginBottom:8 }}>PRODUK {itemIndex + 1} DARI {session.items.length}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                 {item.product_image && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -245,12 +276,12 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
                 {session.aspects.map(aspect => (
-                  <div key={aspect.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <div key={aspect.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap:'wrap', gap: 10 }}>
                     <span style={{ fontSize: 12, color: S.dark, fontWeight: 600 }}>{aspect.name}</span>
                     <StarRatingInput
                       value={state.ratings[aspect.id] ?? 0}
                       onChange={value => updateItem(item.order_item_id, { ratings: { ...state.ratings, [aspect.id]: value } })}
-                      size={22}
+                      label={`Rating ${aspect.name} untuk ${item.product_name}`}
                     />
                   </div>
                 ))}
@@ -274,6 +305,7 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
                   )}
                   <input
                     type="file"
+                    aria-label={`Tambahkan foto untuk ulasan ${item.product_name}`}
                     accept="image/*"
                     capture="environment"
                     onChange={event => onPhotoSelected(item.order_item_id, event.target.files?.[0] ?? null)}
@@ -298,6 +330,9 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
 
       {showSuccessModal && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="review-success-title"
           style={{
             position: 'fixed', inset: 0, background: 'rgba(26,26,46,0.5)',
             display: 'grid', placeItems: 'center', zIndex: 1000, padding: 20,
@@ -305,14 +340,17 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
         >
           <div style={{ background: '#fff', borderRadius: 16, padding: 28, maxWidth: 360, width: '100%', textAlign: 'center' }}>
             <p style={{ fontSize: 32, marginBottom: 10 }}>✓</p>
-            <p style={{ fontSize: 15, fontWeight: 700, color: S.dark, marginBottom: 6 }}>Ulasan berhasil dikirim</p>
-            <p style={{ fontSize: 12, color: S.gray, marginBottom: 20 }}>Terima kasih sudah membagikan pengalamanmu.</p>
+            <p id="review-success-title" style={{ fontSize: 17, fontWeight: 800, color: S.dark, marginBottom: 6 }}>Semua ulasan tersimpan</p>
+            <p style={{ fontSize: 12, color: S.gray, lineHeight:1.6, marginBottom: 20 }}>Terima kasih sudah menilai {session.items.length} produk dalam pesanan ini.</p>
             <button
               type="button"
-              onClick={() => router.replace('/')}
+              onClick={() => router.replace(`/order/${session.order_number}`)}
               className="c-btn c-btn-primary c-btn-md c-btn-full"
             >
-              Kembali ke Beranda
+              Kembali ke Pesanan
+            </button>
+            <button type="button" onClick={() => router.replace('/')} className="c-btn c-btn-ghost c-btn-md c-btn-full" style={{ marginTop:8 }}>
+              Ke Beranda
             </button>
           </div>
         </div>

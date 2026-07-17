@@ -116,7 +116,7 @@ export const useCartStore = create<CartStore>()(
           })
         }
         toast.success(`${product.name} ditambahkan 🛍️`)
-        set({ cartOpen: true, pendingProduct: null })
+        set({ pendingProduct: null })
       },
 
       removeItem: (productId, branchId) => {

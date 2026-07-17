@@ -26,6 +26,7 @@ interface MemberOrderSummary {
   shipping_status: string | null
   items_count: number
   created_at: string
+  review_url?: string | null
 }
 
 interface PaginatedOrders {

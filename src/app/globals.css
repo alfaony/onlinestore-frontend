@@ -5510,6 +5510,19 @@ nav button {
   background: #10b981;
 }
 
+.checkout-mobile-bar {
+  display: none;
+}
+
+.menu-branch-banner__copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.menu-branch-banner__action {
+  flex-shrink: 0;
+}
+
 .preparation-card {
   margin-top: 1rem;
   padding: 1rem;
@@ -5837,6 +5850,107 @@ nav button {
   .checkout-summary {
     position: static !important;
     max-width: none !important;
+  }
+
+  .checkout-layout {
+    display: block !important;
+    padding-bottom: 5.5rem;
+  }
+
+  .checkout-main {
+    min-width: 0 !important;
+  }
+
+  .checkout-card-primary {
+    display: none !important;
+  }
+
+  .checkout-mobile-bar {
+    position: fixed;
+    z-index: 90;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .75rem 1rem calc(.75rem + env(safe-area-inset-bottom));
+    border-top: 1px solid #edd9b8;
+    background: rgba(255, 255, 255, .97);
+    box-shadow: 0 -12px 32px rgba(27, 58, 107, .12);
+    backdrop-filter: blur(12px);
+  }
+
+  .checkout-mobile-bar__total {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .checkout-mobile-bar__total span {
+    color: #6b7280;
+    font-size: .68rem;
+  }
+
+  .checkout-mobile-bar__total strong {
+    overflow: hidden;
+    color: #c41e3a;
+    font-family: var(--font-display), Georgia, serif;
+    font-size: 1.15rem;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .checkout-mobile-bar .c-btn {
+    min-width: 7.25rem;
+    flex-shrink: 0;
+  }
+
+  .checkout-layout + .checkout-mobile-bar {
+    margin-top: 1rem;
+  }
+
+  .branch-shipping-header {
+    align-items: stretch !important;
+    flex-direction: column;
+    gap: .75rem;
+  }
+
+  .branch-shipping-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .branch-fulfillment-toggle {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .branch-fulfillment-toggle button {
+    min-height: 42px;
+    flex: 1;
+    justify-content: center;
+    padding-inline: .55rem !important;
+  }
+
+  .menu-branch-banner {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: .75rem;
+  }
+
+  .menu-branch-banner__action {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    margin: -.35rem -.5rem -.5rem;
+    padding: .35rem .5rem;
+  }
+
+  .section-title {
+    overflow-wrap: anywhere;
   }
 
   .checkout-stepper {

@@ -46,6 +46,7 @@ export interface TrackingOrder {
   payment_type?: string | null
   status_labels: { payment: string; order: string; fulfillment: string }
   created_at: string
+  review_url?: string | null
   subtotal: number
   fulfilled_subtotal: number
   cancelled_subtotal: number
@@ -402,6 +403,17 @@ export default function OrderTracking({ order }: { order: TrackingOrder }) {
         </div>
       )}
 
+      {order.review_url && (
+        <div style={{ background:'linear-gradient(135deg,rgba(232,160,32,.14),rgba(196,30,58,.07))', border:'1px solid rgba(232,160,32,.35)', borderRadius:16, padding:18, marginBottom:20 }}>
+          <p style={{ fontSize:11, fontWeight:800, color:S.red, letterSpacing:1.1, marginBottom:6 }}>PESANAN SELESAI</p>
+          <p style={{ fontSize:16, fontWeight:800, color:S.navy, marginBottom:4 }}>Bagaimana pengalamanmu?</p>
+          <p style={{ fontSize:12, lineHeight:1.6, color:S.gray, marginBottom:14 }}>Penilaianmu membantu kami menjaga rasa dan pelayanan setiap cabang.</p>
+          <a href={order.review_url} className="c-btn c-btn-primary c-btn-md c-btn-full">
+            ★ Beri Penilaian
+          </a>
+        </div>
+      )}
+
       {/* Refund berdiri sendiri, tidak dicampur ke status fulfillment */}
       <RefundCard order={order} />
 
@@ -425,6 +437,15 @@ export default function OrderTracking({ order }: { order: TrackingOrder }) {
                 <p style={{ fontSize:13, fontWeight:600, color: label === 'No. Resi' && value !== '—' ? S.navy : S.dark, fontFamily: label === 'No. Resi' ? 'monospace' : 'inherit' }}>
                   {value ?? '—'}
                 </p>
+                {label === 'No. Resi' && value !== '—' && (
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard?.writeText(String(value))}
+                    style={{ marginTop:4, border:0, background:'none', color:S.red, fontSize:11, fontWeight:700, padding:0 }}
+                  >
+                    Salin resi
+                  </button>
+                )}
               </div>
             ))}
           </div>

@@ -69,7 +69,7 @@ const itemKey = (i: CartItem) => `${i.id}:${i.branchId}`
 // ─── Step Indicator ───────────────────────────────────────
 const STEPS = [
   { label:'Verifikasi', sub:'OTP WhatsApp', Icon:Smartphone },
-  { label:'Alamat', sub:'Lokasi Pengiriman', Icon:MapPin },
+  { label:'Penerimaan', sub:'Diantar atau Ambil', Icon:MapPin },
   { label:'Pembayaran', sub:'Metode Bayar', Icon:CreditCard },
 ]
 
@@ -109,7 +109,7 @@ function ItemSelector({ allItems, selectedKeys, onToggle, onToggleAll }: {
   onToggleAll: (branchId: string, select: boolean) => void
 }) {
   const byBranch = useMemo(() => groupCartByBranch(allItems), [allItems])
-  if (byBranch.length === 0) return null
+  if (byBranch.length === 0 || allItems.length === 1) return null
 
   return (
     <div style={{ background:'#fff', borderRadius:16, padding:20, border:`1px solid ${S.creamDp}`, marginBottom:16 }}>
@@ -123,11 +123,8 @@ function ItemSelector({ allItems, selectedKeys, onToggle, onToggleAll }: {
         <button
           onClick={() => {
             const allSelected = allItems.every(i => selectedKeys.has(itemKey(i)))
-            allItems.forEach(i => onToggle(itemKey(i)))
-            // kalau semua terpilih → unselect semua; kalau tidak → select semua
-            if (!allSelected) {
-              allItems.forEach(i => { if (!selectedKeys.has(itemKey(i))) onToggle(itemKey(i)) })
-            }
+            const branchIds = new Set(allItems.map(item => item.branchId))
+            branchIds.forEach(branchId => onToggleAll(branchId, !allSelected))
           }}
           style={{ fontSize:11, color:S.navy, background:'none', border:`1px solid ${S.creamDp}`, borderRadius:8, padding:'4px 10px', cursor:'pointer' }}>
           {allItems.every(i => selectedKeys.has(itemKey(i))) ? 'Batal Semua' : 'Pilih Semua'}
@@ -240,7 +237,7 @@ function Sidebar({ grouped, branchStates, preview }: {
                 background: isPickup ? 'rgba(16,185,129,0.1)' : 'rgba(27,58,107,0.08)',
                 color: isPickup ? S.green : S.navy,
               }}>
-                {isPickup ? '🏃 Pickup' : '🚚 Delivery'}
+                {isPickup ? '🏃 Ambil sendiri' : '🚚 Diantar'}
               </span>
             </div>
 
@@ -266,7 +263,7 @@ function Sidebar({ grouped, branchStates, preview }: {
             <div style={{ marginTop:8, paddingTop:8, borderTop:`1px dashed ${S.grayL}` }}>
               {isPickup ? (
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:S.green }}>
-                  <span>Pickup · gratis</span>
+                  <span>Ambil sendiri · gratis</span>
                   <span>{bs?.pickup ? new Date(bs.pickup.datetime).toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'}) : '—'}</span>
                 </div>
               ) : bs?.rate ? (
@@ -762,8 +759,8 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
 
       <StepBar step={step} />
 
-      <div style={{ display:'flex', gap:24, alignItems:'start', flexWrap:'wrap' }}>
-        <div style={{ flex:1, minWidth:300 }}>
+      <div className="checkout-layout" style={{ display:'flex', gap:24, alignItems:'start', flexWrap:'wrap' }}>
+        <div className="checkout-main" style={{ flex:1, minWidth:300 }}>
 
           {/* Step 1 */}
           {step === 1 && (
@@ -823,7 +820,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
               </div>
 
               <button onClick={handleNextStep1} disabled={!name || !isWhatsAppVerified || selectedItems.length === 0}
-                className="c-btn c-btn-primary c-btn-lg c-btn-full">
+                className="c-btn c-btn-primary c-btn-lg c-btn-full checkout-card-primary">
                 Lanjut ke Pengiriman →
               </button>
               {!isWhatsAppVerified && phone.length >= 9 && (
@@ -870,7 +867,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
               })}
 
               <button onClick={() => setStep(3)} disabled={!allBranchReady || (needsAddress && !address)}
-                className="c-btn c-btn-primary c-btn-lg c-btn-full" style={{ marginTop:8 }}>
+                className="c-btn c-btn-primary c-btn-lg c-btn-full checkout-card-primary" style={{ marginTop:8 }}>
                 Lanjut ke Pembayaran →
               </button>
             </div>
@@ -976,7 +973,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
                   aria-disabled={paymentDisabled}
                   aria-describedby={paymentDisabled ? 'payment-block-reason' : undefined}
                   title={paymentBlockReason ?? undefined}
-                  className="c-btn c-btn-navy c-btn-md" style={{ flex:2 }}>
+                  className="c-btn c-btn-navy c-btn-md checkout-card-primary" style={{ flex:2 }}>
                   {loading ? '⏳ Memproses...' : promoLoading ? 'Menghitung total…' : `💳 Bayar ${formatRupiah(grandTotal)}`}
                 </button>
               </div>
@@ -990,8 +987,46 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
           )}
         </div>
 
-        {/* Sidebar */}
-        <Sidebar grouped={grouped} branchStates={branchStates} preview={activePromoPreview} />
+      {/* Sidebar */}
+      <Sidebar grouped={grouped} branchStates={branchStates} preview={activePromoPreview} />
+      </div>
+
+      <div className="checkout-mobile-bar" aria-label="Aksi checkout">
+        <div className="checkout-mobile-bar__total">
+          <span>{step === 3 ? 'Total bayar' : 'Estimasi total'}</span>
+          <strong>{formatRupiah(grandTotal)}</strong>
+        </div>
+        {step === 1 && (
+          <button
+            type="button"
+            onClick={handleNextStep1}
+            disabled={!name || !isWhatsAppVerified || selectedItems.length === 0}
+            className="c-btn c-btn-primary c-btn-md"
+          >
+            Lanjut
+          </button>
+        )}
+        {step === 2 && (
+          <button
+            type="button"
+            onClick={() => setStep(3)}
+            disabled={!allBranchReady || (needsAddress && !address)}
+            className="c-btn c-btn-primary c-btn-md"
+          >
+            Pembayaran
+          </button>
+        )}
+        {step === 3 && (
+          <button
+            type="button"
+            onClick={placeOrder}
+            disabled={paymentDisabled}
+            aria-describedby={paymentDisabled ? 'payment-block-reason' : undefined}
+            className="c-btn c-btn-navy c-btn-md"
+          >
+            {loading ? 'Memproses…' : 'Bayar'}
+          </button>
+        )}
       </div>
 
       {/* Tetap mounted meski ditutup, supaya sesi OTP yang sudah diminta (timer,

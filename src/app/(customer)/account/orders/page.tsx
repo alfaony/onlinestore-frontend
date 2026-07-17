@@ -21,6 +21,7 @@ interface Order {
   items_count: number
   shipping_status: string | null
   created_at: string
+  review_url?: string | null
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
@@ -92,10 +93,18 @@ function OrderCard({ order }: { order: Order }) {
             {formatRupiah(order.net_total)}
           </p>
         </div>
-        <Link href={`/order/${order.order_number}`}
-          style={{ fontSize:12, color:S.navy, fontWeight:600, padding:'8px 16px', border:`1px solid ${S.navy}`, borderRadius:8, textDecoration:'none', transition:'all 0.15s' }}>
-          Lacak Pesanan →
-        </Link>
+        <div style={{ display:'flex', flexWrap:'wrap', justifyContent:'flex-end', gap:8 }}>
+          {order.review_url && (
+            <a href={order.review_url}
+              style={{ fontSize:12, color:'#fff', background:S.red, fontWeight:700, padding:'9px 16px', borderRadius:8, textDecoration:'none' }}>
+              ★ Beri Penilaian
+            </a>
+          )}
+          <Link href={`/order/${order.order_number}`}
+            style={{ fontSize:12, color:S.navy, fontWeight:600, padding:'8px 16px', border:`1px solid ${S.navy}`, borderRadius:8, textDecoration:'none', transition:'all 0.15s' }}>
+            Lacak Pesanan →
+          </Link>
+        </div>
       </div>
     </div>
   )

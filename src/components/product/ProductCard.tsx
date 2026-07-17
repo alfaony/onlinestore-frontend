@@ -34,6 +34,10 @@ export default function ProductCard({ product, selectedBranch, branches = [], is
     ? Math.min(...branchPrices)
     : Number(product.price)
   const primaryImage = product.primary_image ?? product.images?.[0]
+  const operational = selectedBranch?.operational_status
+  const availabilityLabel = operational && operational.code !== 'open' && operational.accepting_orders
+    ? 'Pesanan terjadwal'
+    : 'Siap dipesan'
 
 
   const totalInCart = useCartStore(s =>
@@ -101,7 +105,7 @@ export default function ProductCard({ product, selectedBranch, branches = [], is
           <span className="flex items-center gap-1 text-[11px] font-medium text-sr-gray">
             <MapPin size={10} /> {isOtherBranch
               ? canChooseOtherBranch ? `${availableBranchNames.length || availableBranchIds.length} cabang` : 'Belum tersedia'
-              : 'Siap dipesan'}
+              : availabilityLabel}
           </span>
         </div>
 

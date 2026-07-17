@@ -1,6 +1,6 @@
 'use client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useTransition } from 'react'
+import { useEffect, useRef, useTransition } from 'react'
 import type { Category } from '@/types'
 
 interface Props {
@@ -13,6 +13,7 @@ export default function CategoryFilter({ categories, selected, search }: Props) 
   const router = useRouter()
   const params = useSearchParams()
   const [pending, start] = useTransition()
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const safeCategories = Array.isArray(categories) ? categories : []
 
   function push(key: string, value: string | null) {
@@ -21,6 +22,15 @@ export default function CategoryFilter({ categories, selected, search }: Props) 
     else p.delete(key)
     start(() => router.push(`/menu?${p.toString()}`))
   }
+
+  function scheduleSearch(value: string) {
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = setTimeout(() => push('search', value || null), 300)
+  }
+
+  useEffect(() => () => {
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+  }, [])
 
   return (
     <div style={{ marginBottom: 32 }}>
@@ -32,7 +42,7 @@ export default function CategoryFilter({ categories, selected, search }: Props) 
           </span>
           <input
             defaultValue={search}
-            onChange={e => push('search', e.target.value || null)}
+            onChange={e => scheduleSearch(e.target.value)}
             aria-label="Cari menu"
             placeholder="Cari menu favoritmu..."
             className="c-input"
@@ -40,7 +50,10 @@ export default function CategoryFilter({ categories, selected, search }: Props) 
           />
           {search && (
             <button
-              onClick={() => push('search', null)}
+              onClick={() => {
+                if (searchTimer.current) clearTimeout(searchTimer.current)
+                push('search', null)
+              }}
               aria-label="Hapus pencarian"
               style={{
                 position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',

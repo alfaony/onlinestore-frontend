@@ -9,7 +9,7 @@ import {
   groupCartByBranch,
 } from '@/stores/cart.store'
 import { useMemo } from 'react'
-import { formatRupiah } from '@/lib/utils'
+import { formatRupiah, storageUrl } from '@/lib/utils'
 
 const S = {
   red: '#C41E3A', navy: '#1B3A6B', creamDp: '#EDD9B8',
@@ -31,7 +31,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
   return (
     <>
       {open && <div onClick={onClose} className="animate-fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100 }} />}
-      <div style={{ position: 'fixed', top: 0, right: 0, height: '100%', width: '100%', maxWidth: 400, background: '#fff', zIndex: 101, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.12)', transform: open ? 'translateX(0)' : 'translateX(100%)', transition: 'transform 0.3s cubic-bezier(.32,.72,0,1)' }}>
+      <div role={open ? 'dialog' : undefined} aria-modal={open || undefined} aria-hidden={!open} inert={!open} aria-label="Keranjang belanja" style={{ position: 'fixed', top: 0, right: 0, height: '100dvh', width: '100%', maxWidth: 400, background: '#fff', zIndex: 101, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.12)', transform: open ? 'translateX(0)' : 'translateX(100%)', transition: 'transform 0.3s cubic-bezier(.32,.72,0,1)' }}>
 
         {/* Header */}
         <div style={{ padding: '18px 22px', borderBottom: `1px solid ${S.creamDp}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -62,18 +62,22 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
               {/* Items */}
               {items.map(item => (
                 <div key={`${item.id}_${branchId}`} style={{ display: 'flex', gap: 10, marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${S.grayL}` }}>
-                  <div style={{ width: 52, height: 52, background: S.creamD, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🍜</div>
+                  <div style={{ width: 56, height: 56, overflow:'hidden', background: S.creamD, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+                    {item.primary_image?.image_path ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={storageUrl(item.primary_image.image_url ?? item.primary_image.image_path)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    ) : '🍜'}
+                  </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontWeight: 600, fontSize: 13, color: S.dark, marginBottom: 2 }}>{item.name}</p>
                     <p style={{ fontSize: 12, color: S.red, fontWeight: 700, marginBottom: 6 }}>{formatRupiah(item.price)}</p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: S.grayL, borderRadius: 8, padding: '3px 8px' }}>
-                        <button onClick={() => updateQty(item.id, branchId, item.qty - 1)} style={{ background: 'none', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', color: S.dark, width: 18 }}>−</button>
+                      <div style={{ display: 'flex', alignItems: 'center', background: S.grayL, borderRadius: 10 }}>
+                        <button aria-label={`Kurangi jumlah ${item.name}`} onClick={() => updateQty(item.id, branchId, item.qty - 1)} style={{ display:'grid', placeItems:'center', background: 'none', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', color: S.dark, width: 40, height:40 }}>−</button>
                         <span style={{ fontSize: 13, fontWeight: 700, minWidth: 16, textAlign: 'center' }}>{item.qty}</span>
-                        <button onClick={() => updateQty(item.id, branchId, item.qty + 1)} style={{ background: 'none', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', color: S.dark, width: 18 }}>+</button>
+                        <button aria-label={`Tambah jumlah ${item.name}`} onClick={() => updateQty(item.id, branchId, item.qty + 1)} style={{ display:'grid', placeItems:'center', background: 'none', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', color: S.dark, width: 40, height:40 }}>+</button>
                       </div>
-                      <span style={{ fontSize: 11, color: S.gray }}>{formatRupiah(item.price * item.qty)}</span>
-                      <button onClick={() => removeItem(item.id, branchId)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#E5E2DC', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
+                      <button aria-label={`Hapus ${item.name} dari keranjang`} onClick={() => removeItem(item.id, branchId)} style={{ marginLeft: 'auto', display:'grid', placeItems:'center', width:40, height:40, background: 'rgba(196,30,58,.07)', border: 'none', borderRadius:9, color: S.red, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
                     </div>
                   </div>
                 </div>
@@ -90,7 +94,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
 
         {/* Footer */}
         {grouped.length > 0 && (
-          <div style={{ padding: '16px 20px', borderTop: `1px solid ${S.creamDp}` }}>
+          <div style={{ padding: '16px 20px calc(16px + env(safe-area-inset-bottom))', borderTop: `1px solid ${S.creamDp}` }}>
             {branchCount > 1 && (
               <div style={{ background: 'rgba(27,58,107,0.06)', border: '1px solid rgba(27,58,107,0.1)', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 11, color: S.navy }}>
                 ℹ️ Pesanan dari {branchCount} cabang dikirim terpisah
