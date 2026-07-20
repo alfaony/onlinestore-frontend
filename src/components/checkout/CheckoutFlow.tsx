@@ -2,6 +2,11 @@
 import api from '@/lib/api'
 import { formatRupiah } from '@/lib/utils'
 import {
+  isPreparationAllocationComplete,
+  preparationAllocationSummary,
+  PREPARATION_METHODS,
+} from '@/lib/preparation'
+import {
   groupCartByBranch,
   getPreparationMethods,
   useCartItems,
@@ -11,7 +16,7 @@ import {
 } from '@/stores/cart.store'
 import { useAffiliateStore } from '@/stores/affiliate.store'
 import { useMemberStore } from '@/stores/member.store'
-import type { AffiliateValidateResponse, Branch, PromotionPreview } from '@/types'
+import type { AffiliateValidateResponse, Branch, PreparationMethod, PromotionPreview } from '@/types'
 import axios from 'axios'
 import { Check, CreditCard, MapPin, Smartphone } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -249,9 +254,9 @@ function Sidebar({ grouped, branchStates, preview }: {
                   <p style={{ fontSize:11, fontWeight:500, color:S.dark, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                     {item.name} × {item.qty}
                   </p>
-                  {bs?.preparations?.[item.id] && (
-                    <p style={{ fontSize:9, color:S.green, textTransform:'capitalize' }}>
-                      {bs.preparations[item.id] === 'kukus' ? 'Dikukus' : bs.preparations[item.id] === 'goreng' ? 'Digoreng' : 'Frozen'}
+                  {preparationAllocationSummary(bs?.preparations?.[item.id]) && (
+                    <p style={{ fontSize:9, color:S.green }}>
+                      {preparationAllocationSummary(bs?.preparations?.[item.id])}
                     </p>
                   )}
                 </div>
@@ -454,10 +459,9 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
       && !!branch?.can_cook
       && !branch.sells_frozen_only
 
-    return !requiresPreparation || g.items.every(item => {
-      const method = s.preparations?.[item.id]
-      return !!method && getPreparationMethods(item).includes(method)
-    })
+    return !requiresPreparation || g.items.every(item =>
+      isPreparationAllocationComplete(item, s.preparations?.[item.id])
+    )
   })
 
   const calculatedTotal = grouped.reduce((sum, g) => {
@@ -684,14 +688,27 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
             fulfillment_type: s?.fulfillment ?? 'delivery',
             pickup_scheduled_at: isPickup ? (s?.pickup?.datetime ?? null) : null,
             pickup_note: isPickup ? (s?.pickup?.note ?? null) : null,
-            items: g.items.map(i => ({
-              product_id:i.id,
-              quantity:i.qty,
-              price:i.price,
-              preparation_method: !isPickup && s?.rate?.is_instant
-                ? (s.preparations?.[i.id] ?? null)
-                : null,
-            })),
+            items: g.items.flatMap<{
+              product_id: string
+              quantity: number
+              price: number
+              preparation_method: PreparationMethod | null
+            }>(i => {
+              const allocation = s?.preparations?.[i.id]
+              if (!isPickup && s?.rate?.is_instant && allocation) {
+                return PREPARATION_METHODS.flatMap(method => {
+                  const quantity = allocation[method] ?? 0
+                  return quantity > 0 ? [{
+                    product_id:i.id,
+                    quantity,
+                    price:i.price,
+                    preparation_method:method,
+                  }] : []
+                })
+              }
+
+              return [{ product_id:i.id, quantity:i.qty, price:i.price, preparation_method:null }]
+            }),
             shipping: isPickup
               ? { courier:'pickup', service:'self', cost:0, insurance_fee:0, is_instant:false, free_cooking:false }
               : { courier:s?.rate?.courier??'', service:s?.rate?.service??'', cost:s?.rate?.price??0,

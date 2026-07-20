@@ -5755,6 +5755,114 @@ nav button {
   background: #10b981;
 }
 
+.preparation-quick-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin-bottom: .6rem;
+}
+
+.preparation-quick-actions span {
+  margin-right: .1rem;
+  color: #6b7280;
+  font-size: .6rem;
+  font-weight: 700;
+}
+
+.preparation-quick-actions button {
+  min-height: 2rem;
+  padding: .35rem .55rem;
+  border: 1px solid #edd9b8;
+  border-radius: 999px;
+  color: #1b3a6b;
+  background: #fff;
+  font-size: .6rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.preparation-quick-actions button:hover,
+.preparation-quick-actions button:focus-visible {
+  border-color: #c41e3a;
+  color: #c41e3a;
+  outline: none;
+}
+
+.preparation-allocation {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+
+.preparation-allocation__row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: .55rem;
+  min-height: 3.7rem;
+  padding: .55rem .65rem;
+  border: 1.5px solid #e5e2dc;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.preparation-allocation__row--selected {
+  border-color: rgba(196, 30, 58, .45);
+  background: rgba(196, 30, 58, .035);
+}
+
+.preparation-quantity {
+  display: grid;
+  grid-template-columns: 2.5rem 2rem 2.5rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.preparation-quantity button {
+  display: inline-grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid #d8d5cf;
+  border-radius: 8px;
+  color: #1b3a6b;
+  background: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.preparation-quantity button:disabled {
+  color: #b5b2ac;
+  background: #f5f3ef;
+  cursor: not-allowed;
+}
+
+.preparation-quantity button:focus-visible {
+  outline: 3px solid rgba(27, 58, 107, .16);
+  outline-offset: 2px;
+}
+
+.preparation-quantity output {
+  color: #1a1a2e;
+  font-size: .8rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.preparation-allocation__status {
+  margin-top: .55rem;
+  color: #92600a;
+  font-size: .65rem;
+  font-weight: 700;
+}
+
+.preparation-allocation__status--complete {
+  color: #087f5b;
+}
+
 .preparation-frozen-notice {
   display: flex;
   align-items: center;
@@ -6031,6 +6139,23 @@ nav button {
 
   .preparation-option__copy small {
     font-size: .62rem;
+  }
+
+  .preparation-allocation__row {
+    flex-wrap: wrap;
+    padding: .55rem;
+  }
+
+  .preparation-quantity {
+    grid-template-columns: 2.75rem 1fr 2.75rem;
+    width: 100%;
+    margin-top: .25rem;
+    margin-left: 0;
+  }
+
+  .preparation-quantity button {
+    width: 2.75rem;
+    height: 2.75rem;
   }
 }
 

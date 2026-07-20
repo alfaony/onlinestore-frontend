@@ -31,7 +31,14 @@ interface ReviewItem {
   product_name: string
   product_image: string | null
   quantity: number
+  preparation_method: 'frozen' | 'kukus' | 'goreng' | null
   existing_review: ExistingReview | null
+}
+
+const PREPARATION_LABELS: Record<NonNullable<ReviewItem['preparation_method']>, string> = {
+  frozen: '❄️ Frozen',
+  kukus: '♨️ Dikukus',
+  goreng: '🔥 Digoreng',
 }
 
 interface SessionResponse {
@@ -229,13 +236,13 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(26px,5vw,34px)', fontWeight: 700, color: S.navy, marginBottom: 4 }}>
           {session.order_number}
         </h1>
-        <p style={{ fontSize: 13, color: S.gray }}>Ceritakan pengalamanmu untuk tiap produk di bawah ini.</p>
+        <p style={{ fontSize: 13, color: S.gray }}>Ceritakan pengalamanmu untuk tiap olahan produk di bawah ini.</p>
       </div>
 
       <div style={{ background:'#fff', border:`1px solid ${S.creamDp}`, borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
         <div style={{ display:'flex', justifyContent:'space-between', gap:12, marginBottom:8, fontSize:12 }}>
           <span style={{ color:S.navy, fontWeight:800 }}>Progres penilaian</span>
-          <span style={{ color:reviewComplete ? S.green : S.gray, fontWeight:700 }}>{savedCount} dari {session.items.length} produk</span>
+          <span style={{ color:reviewComplete ? S.green : S.gray, fontWeight:700 }}>{savedCount} dari {session.items.length} item</span>
         </div>
         <div style={{ height:7, overflow:'hidden', borderRadius:99, background:S.grayL }}>
           <div style={{ width:`${session.items.length ? (savedCount / session.items.length) * 100 : 0}%`, height:'100%', borderRadius:99, background:reviewComplete ? S.green : S.red, transition:'width .25s ease' }} />
@@ -269,7 +276,9 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
                 )}
                 <div>
                   <p style={{ fontSize: 13, fontWeight: 700, color: S.dark }}>{item.product_name}</p>
-                  <p style={{ fontSize: 11, color: S.gray }}>×{item.quantity}</p>
+                  <p style={{ fontSize: 11, color: S.gray }}>
+                    ×{item.quantity}{item.preparation_method ? ` · ${PREPARATION_LABELS[item.preparation_method]}` : ''}
+                  </p>
                 </div>
                 {state.saved && <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: S.green }}>✓ Tersimpan</span>}
               </div>
@@ -341,7 +350,7 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
           <div style={{ background: '#fff', borderRadius: 16, padding: 28, maxWidth: 360, width: '100%', textAlign: 'center' }}>
             <p style={{ fontSize: 32, marginBottom: 10 }}>✓</p>
             <p id="review-success-title" style={{ fontSize: 17, fontWeight: 800, color: S.dark, marginBottom: 6 }}>Semua ulasan tersimpan</p>
-            <p style={{ fontSize: 12, color: S.gray, lineHeight:1.6, marginBottom: 20 }}>Terima kasih sudah menilai {session.items.length} produk dalam pesanan ini.</p>
+            <p style={{ fontSize: 12, color: S.gray, lineHeight:1.6, marginBottom: 20 }}>Terima kasih sudah menilai {session.items.length} item dalam pesanan ini.</p>
             <button
               type="button"
               onClick={() => router.replace(`/order/${session.order_number}`)}

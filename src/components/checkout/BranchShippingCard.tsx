@@ -1,7 +1,12 @@
 'use client'
 import { formatRupiah } from '@/lib/utils'
+import {
+  isPreparationAllocationComplete,
+  normalizePreparationAllocation,
+  type PreparationAllocation,
+} from '@/lib/preparation'
 import { getPreparationMethods, type CartItem } from '@/stores/cart.store'
-import type { Branch, PreparationMethod } from '@/types'
+import type { Branch } from '@/types'
 import { useState } from 'react'
 import type { AddressPayload } from './AddressForm'
 import PickupScheduler from './PickupScheduler'
@@ -21,7 +26,7 @@ export interface BranchShippingState {
   fulfillment: BranchFulfillment
   rate: Rate | null
   pickup: { datetime: string; note: string } | null
-  preparations: Record<string, PreparationMethod>
+  preparations: Record<string, PreparationAllocation>
 }
 
 interface Props {
@@ -115,10 +120,7 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
     && !!state.rate?.is_instant
     && supportsCooking
   const preparationComplete = !requiresPreparation
-    || items.every(item => {
-      const method = state.preparations?.[item.id]
-      return !!method && getPreparationMethods(item).includes(method)
-    })
+    || items.every(item => isPreparationAllocationComplete(item, state.preparations?.[item.id]))
   const isComplete = state.fulfillment === 'pickup'
     ? !!state.pickup
     : !!state.rate && preparationComplete
@@ -137,9 +139,9 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
 
     const preparations = { ...(state.preparations ?? {}) }
     items.forEach(item => {
-      const methods = getPreparationMethods(item)
-      if (!methods.includes(preparations[item.id])) delete preparations[item.id]
-      if (methods.length === 1) preparations[item.id] = methods[0]
+      const allocation = normalizePreparationAllocation(item, preparations[item.id])
+      if (Object.keys(allocation).length > 0) preparations[item.id] = allocation
+      else delete preparations[item.id]
     })
 
     onChange({ ...state, rate, preparations })
@@ -149,10 +151,10 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
     onChange({ ...state, pickup: { datetime, note } })
   }
 
-  function setPreparation(productId: string, method: PreparationMethod) {
+  function setPreparation(productId: string, allocation: PreparationAllocation) {
     onChange({
       ...state,
-      preparations: { ...(state.preparations ?? {}), [productId]: method },
+      preparations: { ...(state.preparations ?? {}), [productId]: allocation },
     })
   }
 
