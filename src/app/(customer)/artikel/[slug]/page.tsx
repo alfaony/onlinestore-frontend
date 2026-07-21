@@ -66,7 +66,11 @@ function headingSlug(value: string): string {
 function prepareArticleContent(content: string): { html: string; headings: ArticleHeading[] } {
     const headings: ArticleHeading[] = []
     const slugCounts = new Map<string, number>()
-    const html = content.replace(
+    const contentWithoutEmptyParagraphs = content.replace(
+        /<p>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>/gi,
+        '',
+    )
+    const html = contentWithoutEmptyParagraphs.replace(
         /<h([23])([^>]*)>([\s\S]*?)<\/h\1>/gi,
         (match: string, levelValue: string, attributes: string, innerHtml: string) => {
             const text = decodeArticleText(stripHtml(innerHtml))
@@ -181,55 +185,48 @@ export default async function ArtikelDetailPage({ params }: Props) {
                     </div>
                 </nav>
 
-                <header className="mx-auto max-w-4xl text-center">
+                <header className="mx-auto max-w-3xl text-center">
                     {article.category && (
                         <Link href={categoryHref} className="mb-4 inline-flex" aria-label={`Lihat artikel kategori ${article.category.name}`}>
                             <Tag color="gold">{article.category.name}</Tag>
                         </Link>
                     )}
 
-                    <h1 className="font-display text-[2rem] font-bold leading-[1.12] tracking-[-0.02em] text-sr-dark sm:text-[2.6rem] md:text-[3.35rem]">
+                    <h1 className="font-display break-words text-[2.15rem] font-bold leading-[1.08] tracking-[-0.025em] text-sr-dark [overflow-wrap:anywhere] sm:text-[2.75rem] md:text-[3.5rem]">
                         {article.title}
                     </h1>
 
                     {article.meta_description && (
-                        <p className="mx-auto mt-5 max-w-2xl text-[15px] leading-7 text-sr-gray sm:text-base md:text-lg">
+                        <p className="mx-auto mt-5 max-w-2xl break-words text-[15px] leading-7 text-sr-gray [overflow-wrap:anywhere] sm:text-base md:text-lg">
                             {article.meta_description}
                         </p>
                     )}
 
                     <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-sr-gray sm:gap-x-5 sm:text-[13px]">
-                        <span className="flex items-center gap-1.5 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                             <User size={15} aria-hidden="true" /> {authorName}
                         </span>
-                        <span className="flex items-center gap-1.5 whitespace-nowrap">
-                            <Calendar size={15} aria-hidden="true" /> {formatDate(article.published_at)}
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                            <Calendar size={15} aria-hidden="true" />
+                            <time dateTime={article.published_at}>{formatDate(article.published_at)}</time>
                         </span>
-                        <span className="flex basis-full items-center justify-center gap-1.5 whitespace-nowrap sm:basis-auto">
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                             <Clock3 size={15} aria-hidden="true" /> {readingTime} menit membaca
                         </span>
                     </div>
                 </header>
 
-                <div className="relative mx-auto mt-8 aspect-[4/3] max-w-5xl overflow-hidden rounded-2xl bg-gradient-to-br from-sr-navy to-sr-navy-l shadow-[0_20px_60px_rgba(27,58,107,0.13)] sm:aspect-[16/10] md:mt-10 md:aspect-[16/8] md:rounded-[28px]">
+                <div className="relative mx-auto mt-8 h-[240px] w-full max-w-[880px] overflow-hidden rounded-2xl bg-gradient-to-br from-sr-navy to-sr-navy-l shadow-[0_18px_50px_rgba(27,58,107,0.12)] sm:h-[340px] md:mt-10 md:h-[420px] md:rounded-3xl">
                     <ArticleMedia
                         src={imageUrl}
                         alt={article.title}
-                        sizes="(max-width: 768px) 100vw, 980px"
+                        sizes="(max-width: 768px) 100vw, 880px"
                         variant="hero"
                         priority
                     />
                 </div>
 
-                <article id="article-reader" className="mx-auto mt-10 grid w-full min-w-0 max-w-[880px] grid-cols-1 gap-8 md:mt-14 lg:grid-cols-[56px_minmax(0,720px)]">
-                    <aside aria-label="Bagikan artikel" className="hidden lg:block">
-                        <div className="sticky top-28">
-                            <p className="mb-3 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-sr-gray">Bagikan</p>
-                            <ArticleShare title={article.title} description={article.meta_description} compact />
-                        </div>
-                    </aside>
-
-                    <div className="min-w-0">
+                <article id="article-reader" className="mx-auto mt-10 w-full min-w-0 max-w-3xl md:mt-12">
                         {showTableOfContents && (
                             <>
                                 <details className="article-toc mb-8 md:hidden">
@@ -258,8 +255,11 @@ export default async function ArtikelDetailPage({ params }: Props) {
                             </div>
                         )}
 
-                        <section aria-labelledby="mobile-share-heading" className="mt-8 lg:hidden">
-                            <h2 id="mobile-share-heading" className="mb-3 text-lg font-bold text-sr-navy">Bagikan artikel ini</h2>
+                        <section aria-labelledby="share-heading" className="mt-8 rounded-2xl border border-sr-navy/10 bg-white p-4 sm:flex sm:items-center sm:justify-between sm:gap-5 sm:p-5">
+                            <div className="mb-3 sm:mb-0">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-sr-red">Bermanfaat?</p>
+                                <h2 id="share-heading" className="mt-1 text-lg font-bold text-sr-navy">Bagikan artikel ini</h2>
+                            </div>
                             <ArticleShare title={article.title} description={article.meta_description} />
                         </section>
 
@@ -275,15 +275,14 @@ export default async function ArtikelDetailPage({ params }: Props) {
                                 </p>
                             </div>
                         </section>
-                    </div>
                 </article>
 
                 {recommendations.length > 0 && (
-                    <section aria-labelledby="recommendations-heading" className="mx-auto mt-16 max-w-5xl border-t border-sr-navy/10 pt-10 md:mt-20 md:pt-12">
+                    <section aria-labelledby="recommendations-heading" className="mx-auto mt-16 max-w-4xl border-t border-sr-navy/10 pt-10 md:mt-20 md:pt-12">
                         <div className="mb-7 flex items-end justify-between gap-5">
-                            <div>
+                            <div className="min-w-0">
                                 <p className="section-eyebrow mb-2">Bacaan selanjutnya</p>
-                                <h2 id="recommendations-heading" className="font-display text-3xl font-bold text-sr-navy md:text-4xl">
+                                <h2 id="recommendations-heading" className="font-display break-words text-[1.75rem] font-bold leading-tight text-sr-navy [overflow-wrap:anywhere] sm:text-3xl md:text-4xl">
                                     {recommendationsAreRelated && article.category
                                         ? `Artikel ${article.category.name} lainnya`
                                         : 'Artikel terbaru'}

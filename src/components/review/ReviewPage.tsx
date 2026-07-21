@@ -54,7 +54,6 @@ interface ItemFormState {
   comment: string
   photoFile: File | null
   photoPreview: string | null
-  saving: boolean
   saved: boolean
 }
 
@@ -70,7 +69,6 @@ function buildInitialItemState(item: ReviewItem): ItemFormState {
     comment: item.existing_review?.comment ?? '',
     photoFile: null,
     photoPreview: item.existing_review?.photo_url ?? null,
-    saving: false,
     saved: Boolean(item.existing_review),
   }
 }
@@ -93,6 +91,7 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
   const [expired, setExpired] = useState(false)
   const [itemStates, setItemStates] = useState<Record<string, ItemFormState>>({})
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [submittingAll, setSubmittingAll] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   function startCountdown(expiresIn: number) {
@@ -126,7 +125,7 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
       setItemStates(current => Object.fromEntries(data.items.map(item => [
         item.order_item_id,
         current[item.order_item_id]
-          ? { ...current[item.order_item_id], saving:false }
+          ? current[item.order_item_id]
           : buildInitialItemState(item),
       ])))
       startCountdown(data.expires_in)
@@ -155,52 +154,51 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
     updateItem(itemId, { photoFile: file, photoPreview: URL.createObjectURL(file) })
   }
 
-  async function submitItem(item: ReviewItem) {
+  async function submitAll() {
     if (!session) return
     const aspects = session.aspects
-    const state = itemStates[item.order_item_id]
-    const missing = aspects.filter(a => !state.ratings[a.id])
-    if (missing.length > 0) {
-      toast.error(`Beri rating untuk: ${missing.map(a => a.name).join(', ')}`)
+
+    const incomplete = session.items.filter(item => {
+      const state = itemStates[item.order_item_id]
+      return aspects.some(a => !state?.ratings[a.id])
+    })
+    if (incomplete.length > 0) {
+      toast.error(`Lengkapi rating untuk: ${incomplete.map(i => i.product_name).join(', ')}`)
+      document.getElementById(`review-item-${incomplete[0].order_item_id}`)?.scrollIntoView({ behavior:'smooth', block:'start' })
       return
     }
 
-    updateItem(item.order_item_id, { saving: true, saved: false })
+    setSubmittingAll(true)
     try {
       const formData = new FormData()
       formData.append('session_token', session.session_token)
-      Object.entries(state.ratings).forEach(([aspectId, rating]) => {
-        formData.append(`ratings[${aspectId}]`, String(rating))
+      session.items.forEach((item, index) => {
+        const state = itemStates[item.order_item_id]
+        formData.append(`items[${index}][order_item_id]`, item.order_item_id)
+        Object.entries(state.ratings).forEach(([aspectId, rating]) => {
+          formData.append(`items[${index}][ratings][${aspectId}]`, String(rating))
+        })
+        if (state.comment.trim()) formData.append(`items[${index}][comment]`, state.comment.trim())
+        if (state.photoFile) formData.append(`items[${index}][photo]`, state.photoFile)
       })
-      if (state.comment.trim()) formData.append('comment', state.comment.trim())
-      if (state.photoFile) formData.append('photo', state.photoFile)
 
-      await api.post(`/reviews/${orderId}/items/${item.order_item_id}`, formData, {
+      await api.post(`/reviews/${orderId}/submit-all`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
 
-      updateItem(item.order_item_id, { saving: false, saved: true, photoFile: null })
-      const nextItem = session.items.find(candidate =>
-        candidate.order_item_id !== item.order_item_id
-        && !itemStates[candidate.order_item_id]?.saved
-      )
-
-      if (!nextItem) {
-        setShowSuccessModal(true)
-      } else {
-        toast.success('Ulasan tersimpan', { description:'Lanjutkan ke produk berikutnya.' })
-        window.setTimeout(() => {
-          document.getElementById(`review-item-${nextItem.order_item_id}`)?.scrollIntoView({ behavior:'smooth', block:'start' })
-        }, 150)
-      }
+      setItemStates(current => Object.fromEntries(
+        Object.entries(current).map(([id, state]) => [id, { ...state, saved: true, photoFile: null }])
+      ))
+      setShowSuccessModal(true)
     } catch (error) {
-      updateItem(item.order_item_id, { saving: false })
       const message = errorMessage(error, 'Gagal mengirim ulasan.')
       toast.error(message)
       if (message.toLowerCase().includes('sesi')) {
         if (intervalRef.current) clearInterval(intervalRef.current)
         setExpired(true)
       }
+    } finally {
+      setSubmittingAll(false)
     }
   }
 
@@ -226,8 +224,11 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
 
   if (!session) return null
 
-  const savedCount = session.items.filter(item => itemStates[item.order_item_id]?.saved).length
-  const reviewComplete = savedCount === session.items.length
+  const allSaved = session.items.every(item => itemStates[item.order_item_id]?.saved)
+  const filledCount = session.items.filter(item =>
+    session.aspects.every(a => itemStates[item.order_item_id]?.ratings[a.id])
+  ).length
+  const reviewComplete = filledCount === session.items.length
 
   return (
     <div className="c-app" style={{ paddingTop: 44, paddingBottom: 60, maxWidth: 560, margin: '0 auto' }}>
@@ -242,10 +243,10 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
       <div style={{ background:'#fff', border:`1px solid ${S.creamDp}`, borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
         <div style={{ display:'flex', justifyContent:'space-between', gap:12, marginBottom:8, fontSize:12 }}>
           <span style={{ color:S.navy, fontWeight:800 }}>Progres penilaian</span>
-          <span style={{ color:reviewComplete ? S.green : S.gray, fontWeight:700 }}>{savedCount} dari {session.items.length} item</span>
+          <span style={{ color:reviewComplete ? S.green : S.gray, fontWeight:700 }}>{filledCount} dari {session.items.length} item terisi</span>
         </div>
         <div style={{ height:7, overflow:'hidden', borderRadius:99, background:S.grayL }}>
-          <div style={{ width:`${session.items.length ? (savedCount / session.items.length) * 100 : 0}%`, height:'100%', borderRadius:99, background:reviewComplete ? S.green : S.red, transition:'width .25s ease' }} />
+          <div style={{ width:`${session.items.length ? (filledCount / session.items.length) * 100 : 0}%`, height:'100%', borderRadius:99, background:reviewComplete ? S.green : S.red, transition:'width .25s ease' }} />
         </div>
       </div>
 
@@ -323,18 +324,23 @@ export default function ReviewPage({ orderId }: { orderId: string }) {
                 </label>
                 <p style={{ fontSize: 11, color: S.gray, lineHeight: 1.5 }}>Foto produk (opsional, maks 5MB)</p>
               </div>
-
-              <button
-                type="button"
-                onClick={() => submitItem(item)}
-                disabled={state.saving}
-                className="c-btn c-btn-primary c-btn-md c-btn-full"
-              >
-                {state.saving ? 'Menyimpan…' : state.saved ? 'Perbarui ulasan' : 'Simpan ulasan'}
-              </button>
             </div>
           )
         })}
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <button
+          type="button"
+          onClick={submitAll}
+          disabled={submittingAll || expired}
+          className="c-btn c-btn-primary c-btn-md c-btn-full"
+        >
+          {submittingAll ? 'Menyimpan semua ulasan…' : allSaved ? 'Perbarui semua ulasan' : 'Simpan Semua Ulasan'}
+        </button>
+        <p style={{ fontSize: 11, color: S.gray, textAlign: 'center', marginTop: 8 }}>
+          Semua ulasan di atas akan tersimpan dalam satu kali kirim.
+        </p>
       </div>
 
       {showSuccessModal && (

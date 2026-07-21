@@ -37,7 +37,7 @@ export default function ArticleMedia({ src, alt, sizes, variant = 'card', priori
                     className={variant === 'hero'
                         ? 'z-[1] object-cover'
                         : 'z-[1] object-cover transition-transform duration-500 group-hover:scale-105'}
-                    priority={priority}
+                    loading={priority ? 'eager' : 'lazy'}
                     onError={() => setFailed(true)}
                     unoptimized
                 />

@@ -1,7 +1,7 @@
 'use client'
 
 import { Check, Copy, Send, Share2, ThumbsUp } from 'lucide-react'
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 interface Props {
@@ -11,7 +11,12 @@ interface Props {
 }
 
 export default function ArticleShare({ title, description, compact = false }: Props) {
-    const copyStateRef = useRef<HTMLSpanElement>(null)
+    const [copied, setCopied] = useState(false)
+    const copyTimerRef = useRef<number | null>(null)
+
+    useEffect(() => () => {
+        if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current)
+    }, [])
 
     const currentUrl = () => window.location.href
 
@@ -19,8 +24,9 @@ export default function ArticleShare({ title, description, compact = false }: Pr
         try {
             await navigator.clipboard.writeText(currentUrl())
             toast.success('Tautan artikel berhasil disalin.')
-            copyStateRef.current?.classList.add('article-share-copy-success')
-            window.setTimeout(() => copyStateRef.current?.classList.remove('article-share-copy-success'), 1200)
+            setCopied(true)
+            if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current)
+            copyTimerRef.current = window.setTimeout(() => setCopied(false), 1600)
         } catch {
             toast.error('Tautan belum berhasil disalin. Silakan coba kembali.')
         }
@@ -68,11 +74,8 @@ export default function ArticleShare({ title, description, compact = false }: Pr
                 {!compact && <span>Facebook</span>}
             </button>
             <button type="button" onClick={copyLink} className={buttonClass} title="Salin tautan artikel" aria-label={compact ? 'Salin tautan artikel' : undefined}>
-                <span ref={copyStateRef} className="relative inline-flex h-[17px] w-[17px] items-center justify-center">
-                    <Copy size={17} aria-hidden="true" />
-                    <Check size={17} aria-hidden="true" className="article-share-copy-check" />
-                </span>
-                {!compact && <span>Salin tautan</span>}
+                {copied ? <Check size={17} className="text-sr-green" aria-hidden="true" /> : <Copy size={17} aria-hidden="true" />}
+                {!compact && <span aria-live="polite">{copied ? 'Tersalin' : 'Salin tautan'}</span>}
             </button>
         </div>
     )

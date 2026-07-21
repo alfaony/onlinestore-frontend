@@ -113,8 +113,6 @@
 *::before,
 *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html {
@@ -279,10 +277,14 @@ textarea {
 .article-content {
   color: #3f4754;
   font-size: clamp(1.0625rem, 1.25vw, 1.125rem);
-  line-height: 1.85;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
 }
 
-.article-content > * + * { margin-top: 1.4rem; }
+.article-content > * + * { margin-top: 1rem; }
+.article-content p {
+  text-align: left !important;
+}
 .article-content h2,
 .article-content h3,
 .article-content h4 {
@@ -386,15 +388,6 @@ textarea {
   font-weight: 700;
   cursor: pointer;
 }
-
-.article-share-copy-check {
-  position: absolute;
-  opacity: 0;
-  color: #10B981;
-}
-
-.article-share-copy-success > svg:first-child { opacity: 0; }
-.article-share-copy-success .article-share-copy-check { opacity: 1; }
 
 /* ── Storefront hero ────────────────────── */
 .hero-shell {
@@ -1079,6 +1072,10 @@ textarea {
   --tw-gradient-to: #2D5499;
 }
 
+/* Keep the legacy Tailwind reset in the base layer. Without this wrapper the
+   old unlayered reset overrides Tailwind v4 utilities such as spacing and
+   responsive type, which caused the article layout to collapse. */
+@layer base {
 *,
 :before,
 :after {
@@ -1372,6 +1369,7 @@ h4 {
 
 ::-webkit-scrollbar-track {
   background: #f5edd9
+}
 }
 
 *,
