@@ -1,11 +1,10 @@
-// src/app/(customer)/artikel/page.tsx
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import api from '@/lib/api'
 import { formatDate, storageUrl } from '@/lib/utils'
 import Tag from '@/components/ui/Tag'
-import type { Article } from '@/types'
+import type { Article, ArticleCategory } from '@/types'
 
 export const metadata: Metadata = {
     title: 'Artikel',
@@ -13,71 +12,135 @@ export const metadata: Metadata = {
 }
 export const revalidate = 600
 
-export default async function ArtikelPage() {
-    let articles: Article[] = []
-    try { articles = (await api.get('/articles?per_page=9')).data.data ?? [] } catch { }
+interface Props {
+    searchParams: Promise<{ category?: string | string[] }>
+}
+
+async function getArticles(category?: string): Promise<Article[]> {
+    try {
+        const response = await api.get('/articles', {
+            params: { per_page: 9, ...(category ? { category } : {}) },
+        })
+        return response.data.data ?? []
+    } catch {
+        return []
+    }
+}
+
+async function getCategories(): Promise<ArticleCategory[]> {
+    try { return (await api.get('/article-categories')).data ?? [] } catch { return [] }
+}
+
+export default async function ArtikelPage({ searchParams }: Props) {
+    const params = await searchParams
+    const categorySlug = typeof params.category === 'string' ? params.category : undefined
+    const [articles, categories] = await Promise.all([
+        getArticles(categorySlug),
+        getCategories(),
+    ])
+    const activeCategory = categories.find((category) => category.slug === categorySlug)
 
     return (
         <div className="c-app section-pad">
-            {/* Header */}
-            <div className="mb-12 max-w-2xl">
-                <div className="section-eyebrow mb-3">
-                    Blog &amp; Artikel
-                </div>
+            <div className="mb-8 max-w-2xl">
+                <div className="section-eyebrow mb-3">Blog &amp; Artikel</div>
                 <h1 className="section-title">
-                    Cerita Palembang
+                    {activeCategory ? activeCategory.name : 'Cerita Palembang'}
                 </h1>
-                <p className="section-copy mt-4">Cerita kuliner, resep, dan budaya yang membuat Palembang selalu istimewa.</p>
+                <p className="section-copy mt-4">
+                    {activeCategory
+                        ? `Artikel pilihan dalam kategori ${activeCategory.name}.`
+                        : 'Cerita kuliner, resep, dan budaya yang membuat Palembang selalu istimewa.'}
+                </p>
             </div>
 
+            {categories.length > 0 && (
+                <nav aria-label="Kategori artikel" className="mb-10 flex flex-wrap gap-2">
+                    <Link
+                        href="/artikel"
+                        aria-current={!categorySlug ? 'page' : undefined}
+                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                            !categorySlug
+                                ? 'border-sr-navy bg-sr-navy text-white'
+                                : 'border-sr-navy/10 bg-white text-sr-navy hover:border-sr-red hover:text-sr-red'
+                        }`}
+                    >
+                        Semua
+                    </Link>
+                    {categories.map((category) => (
+                        <Link
+                            key={category.id}
+                            href={`/artikel?category=${encodeURIComponent(category.slug)}`}
+                            aria-current={category.slug === categorySlug ? 'page' : undefined}
+                            className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                                category.slug === categorySlug
+                                    ? 'border-sr-navy bg-sr-navy text-white'
+                                    : 'border-sr-navy/10 bg-white text-sr-navy hover:border-sr-red hover:text-sr-red'
+                            }`}
+                        >
+                            {category.name}
+                            {typeof category.articles_count === 'number' && (
+                                <span className="ml-1.5 opacity-60">{category.articles_count}</span>
+                            )}
+                        </Link>
+                    ))}
+                </nav>
+            )}
+
             {articles.length === 0 ? (
-                <div className="py-16 text-center text-sr-gray">
-                    <div className="text-5xl mb-4">📰</div>
-                    <p className="text-sm">Belum ada artikel tersedia.</p>
+                <div className="rounded-2xl border border-sr-navy/10 bg-white px-6 py-16 text-center text-sr-gray">
+                    <div className="mb-4 text-5xl" aria-hidden="true">📰</div>
+                    <p className="font-semibold text-sr-navy">
+                        {activeCategory ? `Belum ada artikel dalam kategori ${activeCategory.name}.` : 'Belum ada artikel tersedia.'}
+                    </p>
+                    {categorySlug && (
+                        <Link href="/artikel" className="mt-4 inline-block text-sm font-bold text-sr-red">
+                            Lihat semua artikel →
+                        </Link>
+                    )}
                 </div>
             ) : (
-                /* Masonry-style grid: first article spans full width on md+ */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                    {articles.map((a, i) => (
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
+                    {articles.map((article, index) => (
                         <Link
-                            key={a.id}
-                            href={`/artikel/${a.slug}`}
-                            className={`c-card block ${i === 0 ? 'md:col-span-2' : ''}`}
+                            key={article.id}
+                            href={`/artikel/${article.slug}`}
+                            className={`c-card block ${index === 0 ? 'md:col-span-2' : ''}`}
                         >
-                            {/* Image */}
-                            <div className={`relative overflow-hidden bg-gradient-to-br from-sr-navy to-sr-navy-l
-                                ${i === 0 ? 'h-48 md:h-[220px]' : 'h-[160px]'}`}>
-                                {a.image
-                                    ? <Image src={storageUrl(a.image_url ?? a.image)} alt={a.title} fill className="object-cover" unoptimized />
-                                    : <div className="h-full flex items-center justify-center text-5xl">📰</div>
+                            <div className={`relative overflow-hidden bg-gradient-to-br from-sr-navy to-sr-navy-l ${
+                                index === 0 ? 'h-48 md:h-[220px]' : 'h-[160px]'
+                            }`}>
+                                {article.image
+                                    ? <Image src={storageUrl(article.image_url ?? article.image)} alt={article.title} fill className="object-cover" unoptimized />
+                                    : <div className="flex h-full items-center justify-center text-5xl" aria-hidden="true">📰</div>
                                 }
-                                <div className="absolute top-3.5 left-3.5">
-                                    <Tag color="gold">{a.category?.name}</Tag>
-                                </div>
-                                {i === 0 && (
-                                    <div className="absolute top-3.5 right-3.5">
-                                        <Tag color="navy">📌 Featured</Tag>
+                                {article.category && (
+                                    <div className="absolute left-3.5 top-3.5">
+                                        <Tag color="gold">{article.category.name}</Tag>
+                                    </div>
+                                )}
+                                {index === 0 && (
+                                    <div className="absolute right-3.5 top-3.5">
+                                        <Tag color="navy">Pilihan terbaru</Tag>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Content */}
-                            <div className={i === 0 ? 'p-5 md:p-6' : 'p-4'}>
-                                <p className="text-[11px] text-gray-400 mb-1.5">
-                                    📅 {formatDate(a.published_at)}
+                            <div className={index === 0 ? 'p-5 md:p-6' : 'p-4'}>
+                                <p className="mb-1.5 text-[11px] text-gray-400">
+                                    {formatDate(article.published_at)}
                                 </p>
-                                <h2 className={`font-display mb-2 font-bold leading-snug text-sr-navy
-                                    ${i === 0 ? 'text-xl md:text-[26px]' : 'text-[20px]'}`}>
-                                    {a.title}
+                                <h2 className={`font-display mb-2 font-bold leading-snug text-sr-navy ${
+                                    index === 0 ? 'text-xl md:text-[26px]' : 'text-[20px]'
+                                }`}>
+                                    {article.title}
                                 </h2>
-                                {a.meta_description && (
-                                    <p className="text-xs text-gray-400 leading-relaxed mb-3 line-clamp-2">
-                                        {a.meta_description}
+                                {article.meta_description && (
+                                    <p className="mb-3 line-clamp-2 text-xs leading-relaxed text-gray-400">
+                                        {article.meta_description}
                                     </p>
                                 )}
-                                <span className="text-xs font-bold text-sr-red">
-                                    Baca Selengkapnya →
-                                </span>
+                                <span className="text-xs font-bold text-sr-red">Baca selengkapnya →</span>
                             </div>
                         </Link>
                     ))}

@@ -4,43 +4,16 @@ import { formatDate, storageUrl } from '@/lib/utils'
 import api from '@/lib/api'
 import type { Article } from '@/types'
 
-const DUMMY_ARTICLES: Article[] = [
-  {
-    id: 'dummy-a1',
-    title: 'Sejarah Pempek: Makanan Khas Palembang yang Mendunia',
-    slug: 'sejarah-pempek',
-    image: null,
-    meta_description: 'Pempek telah menjadi ikon kuliner Palembang selama ratusan tahun. Simak perjalanan sejarahnya.',
-    published_at: new Date().toISOString(),
-    category: { id: 'cat1', name: 'Kuliner', slug: 'kuliner', image: null },
-  },
-  {
-    id: 'dummy-a2',
-    title: 'Tips Memilih Pempek Berkualitas: Panduan Lengkap',
-    slug: 'tips-memilih-pempek',
-    image: null,
-    meta_description: 'Bagaimana cara membedakan pempek asli dan berkualitas? Simak tips lengkap dari ahlinya.',
-    published_at: new Date(Date.now() - 86400000 * 3).toISOString(),
-    category: { id: 'cat1', name: 'Tips', slug: 'tips', image: null },
-  },
-  {
-    id: 'dummy-a3',
-    title: 'Resep Cuko Pempek Asli Palembang yang Autentik',
-    slug: 'resep-cuko-pempek',
-    image: null,
-    meta_description: 'Cuko adalah jiwa dari pempek. Pelajari cara membuat cuko pempek asli Palembang di rumah.',
-    published_at: new Date(Date.now() - 86400000 * 7).toISOString(),
-    category: { id: 'cat2', name: 'Resep', slug: 'resep', image: null },
-  },
-]
-
 async function getArticles(): Promise<Article[]> {
   try { return (await api.get('/articles?per_page=3')).data.data ?? [] } catch { return [] }
 }
 
 export default async function LatestArticles() {
   const articles = await getArticles()
-  const displayArticles = articles.length > 0 ? articles : DUMMY_ARTICLES
+
+  // Jangan tampilkan konten rekaan saat API kosong/tidak tersedia. Selain
+  // menyesatkan pengunjung, slug dummy tidak memiliki halaman detail.
+  if (articles.length === 0) return null
 
   return (
     <section className="section-pad border-t border-sr-navy/10 bg-white/55">
@@ -59,7 +32,7 @@ export default async function LatestArticles() {
         </div>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
-          {displayArticles.map(a => (
+          {articles.map(a => (
             <Link key={a.id} href={`/artikel/${a.slug}`} className="c-card block">
               <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-gradient-to-br from-sr-navy to-sr-navy-l">
                 {a.image
@@ -68,7 +41,10 @@ export default async function LatestArticles() {
                 }
               </div>
               <div className="p-5">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-sr-gray">{formatDate(a.published_at)}</p>
+                <div className="mb-2 flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-wider">
+                  <span className="text-sr-gray">{formatDate(a.published_at)}</span>
+                  {a.category && <span className="text-sr-red">{a.category.name}</span>}
+                </div>
                 <h3 className="font-display mb-2 line-clamp-2 text-[21px] font-bold leading-snug text-sr-navy">
                   {a.title}
                 </h3>

@@ -202,6 +202,18 @@ export type OrderStatus =
     | 'pending' | 'confirmed' | 'processing'
     | 'shipped' | 'delivered' | 'cancelled'
 
+export interface ArticleCategory {
+    id: string
+    name: string
+    slug: string
+    articles_count?: number
+}
+
+export interface ArticleAuthor {
+    id: number
+    name: string
+}
+
 export interface Article {
     id: string
     title: string
@@ -210,7 +222,16 @@ export interface Article {
     image_url?: string | null
     meta_description: string | null
     published_at: string
-    category: Category | null
+    updated_at?: string
+    category: ArticleCategory | null
+    content?: string
+    meta_title?: string | null
+    author?: ArticleAuthor | null
+}
+
+export interface ArticleDetailResponse {
+    article: Article & { content: string }
+    related: Article[]
 }
 
 export interface Member {
