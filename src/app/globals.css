@@ -116,6 +116,7 @@
 }
 
 html {
+  color-scheme: only light;
   scroll-behavior: smooth;
 }
 
@@ -5985,6 +5986,15 @@ nav button {
   margin-bottom: .625rem;
 }
 
+.shipping-options-fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  container-name: shipping-options;
+  container-type: inline-size;
+}
+
 .shipping-rate-list {
   display: flex;
   flex-direction: column;
@@ -5997,6 +6007,8 @@ nav button {
   align-items: center;
   gap: 1rem;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   padding: .75rem .875rem;
   border: 1.5px solid #edd9b8;
   border-radius: 10px;
@@ -6079,6 +6091,101 @@ nav button {
 
 .shipping-rate-card__breakdown {
   overflow-wrap: anywhere;
+}
+
+.shipping-rate-card__badges {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: .25rem;
+  margin-top: .35rem;
+}
+
+.shipping-rate-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  padding: .15rem .45rem;
+  border-radius: 999px;
+  color: #596170;
+  background: #f3f0eb;
+  font-size: .625rem;
+  font-weight: 750;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.shipping-rate-badge--instant {
+  color: #8a5805;
+  background: rgba(232, 160, 32, .13);
+}
+
+.shipping-rate-badge--cooking,
+.shipping-rate-badge--fastest {
+  color: #087f5b;
+  background: rgba(16, 185, 129, .11);
+}
+
+.branch-shipping-title,
+.branch-shipping-title > div:last-child,
+.branch-shipping-address,
+.branch-shipping-address > span:last-child {
+  min-width: 0;
+}
+
+.branch-shipping-title p,
+.branch-shipping-address > span:last-child {
+  overflow-wrap: anywhere;
+}
+
+.branch-shipping-collapse {
+  display: inline-grid;
+  width: 2.625rem;
+  height: 2.625rem;
+  flex: 0 0 2.625rem;
+  place-items: center;
+  border: 1px solid rgba(27, 58, 107, .12);
+  border-radius: 8px;
+  color: #6b7280;
+  background: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.branch-shipping-collapse:focus-visible {
+  outline: 3px solid rgba(27, 58, 107, .16);
+  outline-offset: 2px;
+}
+
+.branch-status-summary,
+.branch-shipping-summary {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.branch-status-summary__copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@container shipping-options (max-width: 28rem) {
+  .shipping-rate-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: .65rem;
+    padding: .75rem;
+  }
+
+  .shipping-rate-card__price {
+    margin-left: 3.875rem;
+    padding-top: .6rem;
+    border-top: 1px dashed rgba(27, 58, 107, .12);
+    text-align: left;
+  }
+
+  .shipping-rate-card__badges {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 767px) {
@@ -6167,7 +6274,8 @@ nav button {
 
   .checkout-layout {
     display: block !important;
-    padding-bottom: 5.5rem;
+    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom));
+    scroll-padding-bottom: calc(7.5rem + env(safe-area-inset-bottom));
   }
 
   .checkout-main {
@@ -6189,6 +6297,8 @@ nav button {
     justify-content: space-between;
     gap: .75rem;
     padding: .75rem 1rem calc(.75rem + env(safe-area-inset-bottom));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-left: max(1rem, env(safe-area-inset-left));
     border-top: 1px solid #edd9b8;
     background: rgba(255, 255, 255, .97);
     box-shadow: 0 -12px 32px rgba(27, 58, 107, .12);
@@ -6229,6 +6339,7 @@ nav button {
     align-items: stretch !important;
     flex-direction: column;
     gap: .75rem;
+    padding: .75rem !important;
   }
 
   .branch-shipping-controls {
@@ -6248,6 +6359,15 @@ nav button {
     padding-inline: .55rem !important;
   }
 
+  .branch-shipping-content {
+    padding: .75rem !important;
+  }
+
+  .branch-shipping-address {
+    align-items: flex-start !important;
+    padding: .65rem .7rem !important;
+  }
+
   .shipping-rate-card {
     grid-template-columns: minmax(0, 1fr);
     gap: .65rem;
@@ -6259,6 +6379,10 @@ nav button {
     padding-top: .6rem;
     border-top: 1px dashed rgba(27, 58, 107, .12);
     text-align: left;
+  }
+
+  .shipping-rate-card__badges {
+    justify-content: flex-start;
   }
 
   .shipping-rate-card__breakdown {

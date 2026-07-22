@@ -88,9 +88,9 @@ function BranchStatusSummary({ state }: {
       const label = date.toLocaleDateString('id-ID', { weekday:'short', day:'numeric', month:'short' })
       const time  = state.pickup.datetime.split(' ')[1]?.slice(0,5)
       return (
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:S.green }}>
+        <div className="branch-status-summary" style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:S.green }}>
           <span>✓</span>
-          <span>Ambil sendiri {label} {time} · Gratis ongkir</span>
+          <span className="branch-status-summary__copy">Ambil sendiri {label} {time} · Gratis ongkir</span>
         </div>
       )
     }
@@ -99,9 +99,9 @@ function BranchStatusSummary({ state }: {
 
   if (state.rate) {
     return (
-      <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:S.green }}>
+      <div className="branch-status-summary" style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:S.green }}>
         <span>✓</span>
-        <span>{state.rate.courier_name} {state.rate.service_name} · {formatRupiah(state.rate.price + state.rate.insurance_fee)}</span>
+        <span className="branch-status-summary__copy">{state.rate.courier_name} {state.rate.service_name} · {formatRupiah(state.rate.price + state.rate.insurance_fee)}</span>
         {state.rate.is_instant && <span style={{ color:S.gold }}>⚡</span>}
       </div>
     )
@@ -125,6 +125,7 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
     ? !!state.pickup
     : !!state.rate && preparationComplete
   const operational = branch.operational_status
+  const contentId = `branch-shipping-content-${branch.id}`
 
   function setFulfillment(f: BranchFulfillment) {
     onChange({ ...state, fulfillment: f, rate: null, pickup: null, preparations: {} })
@@ -159,7 +160,7 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
   }
 
   return (
-    <div style={{
+    <div className="branch-shipping-card" style={{
       border:`1.5px solid ${isComplete ? 'rgba(16,185,129,0.3)' : S.creamDp}`,
       borderRadius:16,
       overflow:'hidden',
@@ -170,17 +171,16 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
       {/* ── Header — klik untuk collapse/expand ── */}
       <div
         className="branch-shipping-header"
-        onClick={() => setExpanded(v => !v)}
         style={{
           display:'flex', alignItems:'center', justifyContent:'space-between',
           padding:'14px 16px',
           background: isComplete ? 'rgba(16,185,129,0.04)' : '#fafafa',
-          cursor:'pointer', userSelect:'none',
+          userSelect:'none',
           borderBottom: expanded ? `1px solid ${S.creamDp}` : 'none',
         }}>
 
         {/* Left: nomor + nama branch */}
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div className="branch-shipping-title" style={{ display:'flex', alignItems:'center', gap:10 }}>
           <div style={{
             width:26, height:26, borderRadius:'50%',
             background: isComplete ? S.green : S.navy,
@@ -206,19 +206,25 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
         {/* Right: toggle + chevron */}
         <div className="branch-shipping-controls" style={{ display:'flex', alignItems:'center', gap:8 }}>
           <MiniToggle value={state.fulfillment} onChange={setFulfillment} canPickup={allSupportFrozen} />
-          <span style={{
-            color:S.gray, fontSize:16, lineHeight:1,
-            transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition:'transform 0.2s', display:'inline-block',
-          }}>
-            ▾
-          </span>
+          <button
+            type="button"
+            className="branch-shipping-collapse"
+            aria-expanded={expanded}
+            aria-controls={contentId}
+            aria-label={expanded ? `Tutup pilihan pengiriman ${branch.name}` : `Buka pilihan pengiriman ${branch.name}`}
+            onClick={() => setExpanded(value => !value)}
+          >
+            <span aria-hidden="true" style={{
+              transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition:'transform 0.2s', display:'inline-block',
+            }}>▾</span>
+          </button>
         </div>
       </div>
 
       {/* ── Content ── */}
       {expanded && (
-        <div style={{ padding:'16px 16px' }}>
+        <div id={contentId} className="branch-shipping-content" style={{ padding:'16px 16px' }}>
 
           {operational && operational.code !== 'open' && (
             <div style={{ padding:'10px 12px', borderRadius:9, marginBottom:14, background:operational.accepting_orders?'rgba(232,160,32,.08)':'rgba(196,30,58,.07)', border:`1px solid ${operational.accepting_orders?'rgba(232,160,32,.25)':'rgba(196,30,58,.2)'}`, color:operational.accepting_orders?'#92600A':S.red, fontSize:11, lineHeight:1.5 }}>
@@ -230,7 +236,7 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
             <>
               {/* Info alamat kalau sudah diisi */}
               {address ? (
-                <div style={{
+                <div className="branch-shipping-address" style={{
                   display:'flex', alignItems:'center', gap:8,
                   padding:'8px 12px', borderRadius:8,
                   background:'rgba(27,58,107,0.04)', marginBottom:14,
@@ -294,7 +300,7 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
 
           {/* Summary bawah card */}
           {(isComplete || (state.rate && requiresPreparation)) && (
-            <div style={{
+            <div className="branch-shipping-summary" style={{
               marginTop:12, paddingTop:12,
               borderTop:`1px dashed ${S.creamDp}`,
               display:'flex', justifyContent:'space-between',

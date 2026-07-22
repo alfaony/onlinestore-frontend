@@ -5,9 +5,7 @@ import { getPreparationMethods, type CartItem } from '@/stores/cart.store'
 import { useEffect, useRef, useState } from 'react'
 
 const S = {
-  red:'#C41E3A', navy:'#1B3A6B', creamDp:'#EDD9B8',
-  gray:'#6B7280', grayL:'#F3F0EB', dark:'#1A1A2E',
-  green:'#10B981', gold:'#E8A020',
+  red:'#C41E3A', gray:'#6B7280', grayL:'#F3F0EB',
 }
 
 export interface Rate {
@@ -62,10 +60,27 @@ function getBestRate(rates: Rate[]): Rate {
 
 
 // ── Cache key helper ──────────────────────────────────────
-function buildCacheKey(branchId: string, postal: string, items: CartItem[]): string {
-  const totalWeight = items.reduce((s, i) => s + 500 * i.qty, 0)
-  const capabilities = items.map(item => `${item.id}:${getPreparationMethods(item).join(',')}`).join('|')
-  return `rates:v5:${branchId}:${postal}:${totalWeight}:${capabilities}`
+function buildCacheKey(
+  branchId: string,
+  postal: string,
+  latitude: number | null,
+  longitude: number | null,
+  items: CartItem[],
+): string {
+  const destination = latitude !== null && longitude !== null
+    ? `${latitude.toFixed(5)},${longitude.toFixed(5)}`
+    : `postal:${postal}`
+  const cart = [...items]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map(item => [
+      item.id,
+      item.qty,
+      item.price,
+      [...getPreparationMethods(item)].sort().join(','),
+    ].join(':'))
+    .join('|')
+
+  return `rates:v6:${branchId}:${destination}:${cart}`
 }
 
 // ── Session storage helpers ───────────────────────────────
@@ -129,14 +144,22 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
       // Keep state updates asynchronous relative to the effect invocation.
       await Promise.resolve()
       const currentItems = itemsRef.current
-      const cacheKey = buildCacheKey(branchId, destinationPostal, currentItems)
+      const cacheKey = buildCacheKey(
+        branchId,
+        destinationPostal,
+        latitude,
+        longitude,
+        currentItems,
+      )
       const cached = getCachedRates(cacheKey)
 
       if (cached?.length) {
         if (cancelled) return
         const best = getBestRate(cached)
+        setLoading(false)
         setRates(cached)
         setIsMock(false)
+        setRateMessage(null)
         setSelected(best)
         onSelectRef.current(best)
         return
@@ -201,6 +224,8 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
     onSelect(rate)
   }
 
+  const bestRate = rates.length > 0 ? getBestRate(rates) : null
+
   // ── Guards ──────────────────────────────────────────────
   if (!address) return (
     <div style={{ padding:'10px 14px', background:S.grayL, borderRadius:10, fontSize:12, color:S.gray }}>
@@ -215,12 +240,13 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
   )
 
   return (
-    <div>
+    <fieldset className="shipping-options-fieldset" aria-busy={loading}>
+      <legend className="sr-only">Pilih kurir pengiriman</legend>
       {/* Header */}
       <div className="shipping-options-heading">
-        <label style={{ fontSize:12, color:S.gray, fontWeight:500 }}>🚚 Pilih Kurir</label>
+        <span aria-hidden="true" style={{ fontSize:12, color:S.gray, fontWeight:500 }}>🚚 Pilih Kurir</span>
         {isMock && (
-          <span style={{ fontSize:11, background:'rgba(232,160,32,0.12)', color:'#92600A', padding:'2px 8px', borderRadius:10 }}>
+          <span role="status" style={{ fontSize:11, background:'rgba(232,160,32,0.12)', color:'#92600A', padding:'2px 8px', borderRadius:10 }}>
             Estimasi — Biteship aktif saat deploy
           </span>
         )}
@@ -228,14 +254,14 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
 
       {/* Loading */}
       {loading && (
-        <div style={{ display:'flex', alignItems:'center', gap:8, padding:14, background:S.grayL, borderRadius:10, fontSize:12, color:S.gray }}>
+        <div role="status" aria-live="polite" style={{ display:'flex', alignItems:'center', gap:8, padding:14, background:S.grayL, borderRadius:10, fontSize:12, color:S.gray }}>
           <span className="animate-spin" style={{ display:'inline-block' }}>⟳</span>
           Mengambil tarif pengiriman...
         </div>
       )}
 
       {!loading && rates.length === 0 && (
-        <div style={{ padding:'12px 14px', background:'rgba(232,160,32,0.08)', border:'1px solid rgba(232,160,32,0.2)', borderRadius:10, fontSize:12, color:'#92600A' }}>
+        <div role={rateMessage ? 'alert' : 'status'} style={{ padding:'12px 14px', background:'rgba(232,160,32,0.08)', border:'1px solid rgba(232,160,32,0.2)', borderRadius:10, fontSize:12, color:'#92600A' }}>
           ⚠️ {rateMessage ?? (allSupportFrozen
             ? 'Kurir pengiriman tidak tersedia untuk area ini.'
             : 'Produk ini tidak tersedia Frozen, sehingga hanya dapat dikirim instant.')}
@@ -293,25 +319,27 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
                     {formatRupiah(rate.price + rate.insurance_fee)}
                   </div>
                   <div className="shipping-rate-card__breakdown">
-                    Ongkir {formatRupiah(rate.price)} + 🛡️ {formatRupiah(rate.insurance_fee)}
+                    Ongkir {formatRupiah(rate.price)} · Asuransi {formatRupiah(rate.insurance_fee)}
                   </div>
-                  {instant && (
-                    <>
-                      <div style={{ fontSize:11, color:S.gold, fontWeight:700 }}>⚡ Instant</div>
-                      <div style={{ fontSize:11, color:rate.free_cooking ? S.green : S.gray, fontWeight:600 }}>
-                        {rate.free_cooking ? '🍳 Gratis Masak' : '❄️ Dikirim Frozen'}
-                      </div>
-                    </>
-                  )}
-                  {!instant && rate === getBestRate(rates) && (
-                    <div style={{ fontSize:11, color:S.green, fontWeight:600 }}>🚀 Tercepat</div>
-                  )}
+                  <div className="shipping-rate-card__badges">
+                    {instant && (
+                      <>
+                        <span className="shipping-rate-badge shipping-rate-badge--instant">⚡ Hari ini</span>
+                        <span className={`shipping-rate-badge ${rate.free_cooking ? 'shipping-rate-badge--cooking' : ''}`}>
+                          {rate.free_cooking ? '🍳 Gratis masak' : '❄️ Frozen'}
+                        </span>
+                      </>
+                    )}
+                    {!instant && rate === bestRate && (
+                      <span className="shipping-rate-badge shipping-rate-badge--fastest">🚀 Tercepat</span>
+                    )}
+                  </div>
                 </div>
               </label>
             )
           })}
         </div>
       )}
-    </div>
+    </fieldset>
   )
 }
