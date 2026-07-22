@@ -72,7 +72,7 @@ export default function ProductCard({ product, selectedBranch, branches = [], is
   return (
     <article className="c-card product-card" style={isOtherBranch ? { borderColor:'rgba(27,58,107,.18)', background:'#FCFBF8' } : undefined}>
 
-      {product.popular && (
+      {product.is_best_seller && (
         <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}>
           <span className="c-tag c-tag-gold">Terlaris</span>
         </div>

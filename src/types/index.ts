@@ -14,6 +14,8 @@ export interface Product {
     primary_image: ProductImage | null
     shipping_discounts: ShippingDiscount[]
     popular: boolean
+    is_best_seller?: boolean
+    sold_quantity?: number
     stock: number;
     branch_availability?: string[]  // ← tambah kalau belum ada branch_availability
     branch_prices?: Record<string, number>

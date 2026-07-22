@@ -16,7 +16,7 @@ export const revalidate = 3600
 
 async function getHomeData() {
   try {
-    const [p, b] = await Promise.all([api.get('/products?per_page=6'), api.get('/branches')])
+    const [p, b] = await Promise.all([api.get('/products/best-sellers?limit=6'), api.get('/branches')])
     return { products: p.data.data ?? [], branches: b.data ?? [] }
   } catch {
     return { products: [], branches: [] }
@@ -29,7 +29,7 @@ export default async function HomePage() {
   return (
     <main>
       <HeroSection />
-      <FeaturedProducts products={products} />
+      <FeaturedProducts initialProducts={products} />
       <WhySeraso />
       <BranchSection branches={branches} />
 

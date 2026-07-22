@@ -1,62 +1,53 @@
+'use client'
+
+import api from '@/lib/api'
+import { useCartStore } from '@/stores/cart.store'
 import Link from 'next/link'
 import ProductCard from '@/components/product/ProductCard'
 import type { Product } from '@/types'
+import { LoaderCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
-const DUMMY_PRODUCTS: Product[] = [
-  {
-    id: 'dummy-1',
-    name: 'Pempek Kapal Selam',
-    slug: 'pempek-kapal-selam',
-    description: 'Pempek berisi telur utuh, digoreng hingga kecokelatan. Disajikan dengan cuko pedas khas Palembang.',
-    price: 25000,
-    is_active: true,
-    popular: true,
-    category: { id: 'c1', name: 'Pempek', slug: 'pempek', image: null },
-    images: [],
-    primary_image: null,
-    shipping_discounts: [],
-    stock: 0,
-    qty: 0,
-    branchId: '',
-  },
-  {
-    id: 'dummy-2',
-    name: 'Tekwan Kuah',
-    slug: 'tekwan-kuah',
-    description: 'Bola-bola ikan segar dalam kuah bening gurih dengan jamur kuping dan bengkuang.',
-    price: 22000,
-    is_active: true,
-    popular: true,
-    category: { id: 'c2', name: 'Tekwan', slug: 'tekwan', image: null },
-    images: [],
-    primary_image: null,
-    shipping_discounts: [],
-    stock: 0,
-    qty: 0,
-    branchId: '',
-  },
-  {
-    id: 'dummy-3',
-    name: 'Model Goreng',
-    slug: 'model-goreng',
-    description: 'Tahu isi adonan ikan yang digoreng krispi. Nikmat dengan sambal cuko asam pedas.',
-    price: 20000,
-    is_active: true,
-    popular: false,
-    category: { id: 'c3', name: 'Model', slug: 'model', image: null },
-    images: [],
-    primary_image: null,
-    shipping_discounts: [],
-    stock: 0,
-    qty: 0,
-    branchId: '',
-  },
-]
+export default function FeaturedProducts({ initialProducts }: { initialProducts: Product[] }) {
+  const activeBranch = useCartStore(state => state.activeBranch)
+  const hasHydrated = useCartStore(state => state.hasHydrated)
+  const [branchResult, setBranchResult] = useState<{
+    branchId: string
+    products: Product[]
+  } | null>(null)
+  const activeBranchId = hasHydrated ? activeBranch?.id ?? null : null
+  const usesBranchRanking = activeBranchId !== null
+  const hasCurrentBranchResult = usesBranchRanking && branchResult?.branchId === activeBranchId
+  const loading = usesBranchRanking && !hasCurrentBranchResult
+  const products = usesBranchRanking
+    ? hasCurrentBranchResult ? branchResult.products : []
+    : initialProducts
 
-export default function FeaturedProducts({ products }: { products: Product[] }) {
-  const displayProducts = products.length > 0
-    ? products.filter(p => p.popular).slice(0, 6)
-    : DUMMY_PRODUCTS
+  useEffect(() => {
+    if (!activeBranchId) return
+
+    let active = true
+    const branchId = activeBranchId
+
+    api.get('/products/best-sellers', {
+      params: { branch_id: branchId, limit: 6 },
+    })
+      .then(({ data }) => {
+        if (active) {
+          setBranchResult({
+            branchId,
+            products: Array.isArray(data.data) ? data.data : [],
+          })
+        }
+      })
+      .catch(() => {
+        if (active) setBranchResult({ branchId, products: [] })
+      })
+
+    return () => { active = false }
+  }, [activeBranchId])
+
+  if (!usesBranchRanking && products.length === 0 && !loading) return null
 
   return (
     <section className="c-app section-pad">
@@ -68,22 +59,40 @@ export default function FeaturedProducts({ products }: { products: Product[] }) 
           <h2 className="section-title">
             Menu Unggulan
           </h2>
-          <p className="section-copy mt-3">Menu favorit pelanggan, dibuat segar dari resep keluarga kami.</p>
+          <p className="section-copy mt-3">
+            {activeBranch
+              ? `Paling banyak dipesan dari ${activeBranch.name}.`
+              : 'Paling banyak dipesan pelanggan dari seluruh cabang.'}
+          </p>
         </div>
-        <Link href="/menu" className="c-btn c-btn-outline c-btn-sm hidden sm:inline-flex">
-          Lihat Semua →
-        </Link>
+        <div className="hidden shrink-0 items-center gap-3 sm:flex">
+          {loading && <LoaderCircle size={17} className="animate-spin text-sr-gray" aria-label="Memuat menu terlaris cabang" />}
+          <Link href={activeBranch ? `/menu?branch_id=${activeBranch.id}` : '/menu'} className="c-btn c-btn-outline c-btn-sm">
+            Lihat Semua →
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
-        {displayProducts.map(p => (
-          <ProductCard key={p.id} product={p} />
-        ))}
+        {loading
+          ? [1, 2, 3].map(item => (
+              <div key={item} className="c-shimmer min-h-80 rounded-2xl" aria-hidden="true" />
+            ))
+          : products.length === 0
+            ? (
+                <div className="col-span-full rounded-2xl border border-dashed border-sr-navy/20 bg-white/60 px-5 py-10 text-center">
+                  <p className="font-display text-xl font-bold text-sr-navy">Belum ada data menu terlaris</p>
+                  <p className="mt-2 text-sm text-sr-gray">Belum ada penjualan valid di {activeBranch?.name}.</p>
+                </div>
+              )
+          : products.map(product => (
+              <ProductCard key={product.id} product={product} />
+            ))}
       </div>
 
       {/* Mobile CTA */}
       <div className="mt-6 sm:hidden">
-        <Link href="/menu" className="c-btn c-btn-primary c-btn-lg c-btn-full">
+        <Link href={activeBranch ? `/menu?branch_id=${activeBranch.id}` : '/menu'} className="c-btn c-btn-primary c-btn-lg c-btn-full">
           Lihat Semua Menu →
         </Link>
       </div>

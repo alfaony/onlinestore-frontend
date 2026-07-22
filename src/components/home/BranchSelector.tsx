@@ -23,13 +23,18 @@ export default function BranchSelector() {
   const setActiveBranch = useCartStore(s => s.setActiveBranch)
   const setSwitchingBranch = useCartStore(s => s.setSwitchingBranch)
 
-  async function fetchBranches(lat?: number, lng?: number) {
+  async function fetchBranches(lat?: number, lng?: number): Promise<BranchWithDistance[]> {
     setLoading(true)
     try {
       const params: Record<string, number> = {}
       if (lat !== undefined && lng !== undefined) { params.lat = lat; params.lng = lng }
       const { data } = await api.get('/branches', { params })
-      setBranches(data)
+      const list = Array.isArray(data) ? data : []
+      setBranches(list)
+      return list
+    } catch {
+      setBranches([])
+      return []
     } finally {
       setLoading(false)
     }
@@ -64,7 +69,14 @@ export default function BranchSelector() {
           setCityName(city)
         } catch {}
 
-        await fetchBranches(lat, lng)
+        const nearbyBranches = await fetchBranches(lat, lng)
+        const nearestBranch = nearbyBranches.find(branch =>
+          branch.operational_status?.accepting_orders ?? true
+        ) ?? nearbyBranches[0]
+
+        if (nearestBranch) {
+          setActiveBranch({ id: nearestBranch.id, name: nearestBranch.name })
+        }
         setDetecting(false)
       },
       () => setDetecting(false),

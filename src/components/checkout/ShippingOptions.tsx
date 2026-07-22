@@ -217,7 +217,7 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
   return (
     <div>
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+      <div className="shipping-options-heading">
         <label style={{ fontSize:12, color:S.gray, fontWeight:500 }}>🚚 Pilih Kurir</label>
         {isMock && (
           <span style={{ fontSize:11, background:'rgba(232,160,32,0.12)', color:'#92600A', padding:'2px 8px', borderRadius:10 }}>
@@ -251,7 +251,7 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
 
       {/* Rates list */}
       {!loading && (
-        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        <div className="shipping-rate-list">
           {rates.map(rate => {
             // ✅ pakai isSelected, bukan active
             const isSelected = selected?.courier === rate.courier && selected?.service === rate.service
@@ -260,17 +260,10 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
             return (
               <label
                 key={`${rate.courier}_${rate.service}`}
-                style={{
-                  display:'flex', alignItems:'center', justifyContent:'space-between',
-                  padding:'12px 14px',
-                  border:`1.5px solid ${isSelected ? S.red : S.creamDp}`,
-                  borderRadius:10, cursor:'pointer',
-                  background: isSelected ? 'rgba(196,30,58,0.04)' : '#fff',
-                  transition:'all 0.18s',
-                }}>
+                className={`shipping-rate-card${isSelected ? ' shipping-rate-card--selected' : ''}`}>
 
                 {/* Left — kurir info */}
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div className="shipping-rate-card__main">
                   <input
                     type="radio"
                     name={`ship_${branchId}`}
@@ -278,14 +271,14 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
                     onChange={() => handleSelect(rate)}
                     style={{ accentColor:S.red, width:16, height:16 }}
                   />
-                  <div style={{ width:36, height:36, background:S.grayL, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>
+                  <div className="shipping-rate-card__icon">
                     {instant ? '⚡' : '📦'}
                   </div>
-                  <div>
-                    <div style={{ fontSize:13, fontWeight:600, color:S.dark }}>
+                  <div className="shipping-rate-card__copy">
+                    <div className="shipping-rate-card__name">
                       {rate.courier_name} — {rate.service_name}
                     </div>
-                    <div style={{ fontSize:11, color:S.gray }}>
+                    <div className="shipping-rate-card__estimate">
                       {instant
                         ? 'Pengiriman hari ini'
                         : `Estimasi ${rate.etd} hari`
@@ -295,11 +288,11 @@ export default function ShippingOptions({ address, branchId, items, onSelect }: 
                 </div>
 
                 {/* Right — harga + badge */}
-                <div style={{ textAlign:'right', flexShrink:0 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:S.red }}>
+                <div className="shipping-rate-card__price">
+                  <div className="shipping-rate-card__total">
                     {formatRupiah(rate.price + rate.insurance_fee)}
                   </div>
-                  <div style={{ fontSize:11, color:S.gray }}>
+                  <div className="shipping-rate-card__breakdown">
                     Ongkir {formatRupiah(rate.price)} + 🛡️ {formatRupiah(rate.insurance_fee)}
                   </div>
                   {instant && (

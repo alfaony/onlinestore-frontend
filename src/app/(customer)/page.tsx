@@ -6,32 +6,40 @@ import BranchSection from '@/components/home/BranchSection'
 import CTASection from '@/components/home/CTASection'
 import LatestArticles from '@/components/home/LatestArticles'
 import api from '@/lib/api'
+import type { Branch, Product } from '@/types'
 
 // Article mutations normally invalidate this route on demand. A short fallback
 // lets the homepage recover quickly if the revalidation callback is unavailable.
 export const revalidate = 60
 
-async function getHomeData() {
+async function getFeaturedProducts(): Promise<Product[]> {
     try {
-        const [productsRes, branchesRes] = await Promise.all([
-            api.get('/products?per_page=6'),
-            api.get('/branches'),
-        ])
-        return {
-            products: productsRes.data.data ?? [],
-            branches: branchesRes.data ?? [],
-        }
+        const { data } = await api.get('/products/best-sellers?limit=6')
+
+        return Array.isArray(data.data) ? data.data : []
     } catch {
-        return { products: [], branches: [] }
+        return []
+    }
+}
+
+async function getBranches(): Promise<Branch[]> {
+    try {
+        return (await api.get('/branches')).data ?? []
+    } catch {
+        return []
     }
 }
 
 export default async function HomePage() {
-    const { products, branches } = await getHomeData()
+    const [products, branches] = await Promise.all([
+        getFeaturedProducts(),
+        getBranches(),
+    ])
+
     return (
         <>
             <HeroSection />
-            <FeaturedProducts products={products} />
+            <FeaturedProducts initialProducts={products} />
             <WhySeraso />
             <BranchSection branches={branches} />
             <Suspense fallback={
