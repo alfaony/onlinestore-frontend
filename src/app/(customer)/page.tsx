@@ -7,8 +7,9 @@ import CTASection from '@/components/home/CTASection'
 import LatestArticles from '@/components/home/LatestArticles'
 import api from '@/lib/api'
 
-// Refresh the static page before its 30-minute private R2 image URLs expire.
-export const revalidate = 1500
+// Article mutations normally invalidate this route on demand. A short fallback
+// lets the homepage recover quickly if the revalidation callback is unavailable.
+export const revalidate = 60
 
 async function getHomeData() {
     try {
