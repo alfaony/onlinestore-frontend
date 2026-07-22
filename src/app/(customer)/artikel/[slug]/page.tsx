@@ -1,16 +1,16 @@
-import type { Metadata } from 'next'
-import { cache } from 'react'
-import { isAxiosError } from 'axios'
-import { notFound } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft, Calendar, ChevronRight, Clock3, User, UserRound } from 'lucide-react'
-import api from '@/lib/api'
-import { formatDate, storageUrl, stripHtml } from '@/lib/utils'
 import ArticleMedia from '@/components/article/ArticleMedia'
 import ArticleReadingProgress from '@/components/article/ArticleReadingProgress'
 import ArticleShare from '@/components/article/ArticleShare'
 import Tag from '@/components/ui/Tag'
+import api from '@/lib/api'
+import { formatDate, storageUrl, stripHtml } from '@/lib/utils'
 import type { Article, ArticleDetailResponse } from '@/types'
+import { isAxiosError } from 'axios'
+import { ArrowLeft, Calendar, ChevronRight, Clock3, User, UserRound } from 'lucide-react'
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { cache } from 'react'
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -278,7 +278,7 @@ export default async function ArtikelDetailPage({ params }: Props) {
                 </article>
 
                 {recommendations.length > 0 && (
-                    <section aria-labelledby="recommendations-heading" className="mx-auto mt-16 max-w-4xl border-t border-sr-navy/10 pt-10 md:mt-20 md:pt-12">
+                    <section aria-labelledby="recommendations-heading" className="mb-5 mx-auto mt-16 max-w-4xl border-t border-sr-navy/10 pt-10 md:mt-20 md:pt-12">
                         <div className="mb-7 flex items-end justify-between gap-5">
                             <div className="min-w-0">
                                 <p className="section-eyebrow mb-2">Bacaan selanjutnya</p>
