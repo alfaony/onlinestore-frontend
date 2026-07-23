@@ -166,7 +166,7 @@ export default function OTPModal({ open, phone, name, email, onClose, onVerified
   }
 
   return (
-    <Modal open={open} onClose={closeModal} titleId="otp-modal-title" maxWidth={400}>
+    <Modal open={open} onClose={closeModal} titleId="otp-modal-title" maxWidth={400} mobileSheet>
       <div className={styles.content}>
         <div className={styles.header}>
           <div className={styles.headerCopy}>

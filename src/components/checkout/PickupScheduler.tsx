@@ -72,7 +72,7 @@ export default function PickupScheduler({ branch, onSelect }: Props) {
         </label>
         <div style={{ display:'flex', gap:8 }}>
           {slots.map(s => (
-            <button key={s.date} onClick={() => { setSelectedDate(s.date); setSelectedTime('') }}
+            <button key={s.date} type="button" onClick={() => { setSelectedDate(s.date); setSelectedTime('') }}
               style={{
                 flex:1, padding:'10px 8px', borderRadius:10,
                 border:`1.5px solid ${selectedDate===s.date ? S.red : S.creamDp}`,
@@ -93,7 +93,7 @@ export default function PickupScheduler({ branch, onSelect }: Props) {
         </label>
         <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
           {currentSlot?.times.map(t => (
-            <button key={t} onClick={() => setSelectedTime(t)}
+            <button key={t} type="button" onClick={() => setSelectedTime(t)}
               style={{
                 padding:'8px 14px', borderRadius:8,
                 border:`1.5px solid ${selectedTime===t ? S.red : S.creamDp}`,

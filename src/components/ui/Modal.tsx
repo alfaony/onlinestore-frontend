@@ -8,9 +8,10 @@ interface Props {
   titleId: string
   children: ReactNode
   maxWidth?: number
+  mobileSheet?: boolean
 }
 
-export default function Modal({ open, onClose, titleId, children, maxWidth = 420 }: Props) {
+export default function Modal({ open, onClose, titleId, children, maxWidth = 420, mobileSheet = false }: Props) {
   const panelRef = useRef<HTMLElement>(null)
   const onCloseRef = useRef(onClose)
 
@@ -45,10 +46,13 @@ export default function Modal({ open, onClose, titleId, children, maxWidth = 420
   }
 
   return (
-    <div className="c-modal-layer animate-fade-in" onMouseDown={closeFromBackdrop}>
+    <div
+      className={`c-modal-layer animate-fade-in${mobileSheet ? ' c-modal-layer--mobile-sheet' : ''}`}
+      onMouseDown={closeFromBackdrop}
+    >
       <section
         ref={panelRef}
-        className="c-modal-panel animate-modal-in"
+        className={`c-modal-panel animate-modal-in${mobileSheet ? ' c-modal-panel--mobile-sheet' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

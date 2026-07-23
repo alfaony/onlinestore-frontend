@@ -25,9 +25,11 @@ interface Props {
   items: CartItem[]
   values: Record<string, PreparationAllocation>
   onChange: (productId: string, allocation: PreparationAllocation) => void
+  mode: 'instant' | 'pickup'
+  titleId: string
 }
 
-export default function PreparationOptions({ items, values, onChange }: Props) {
+export default function PreparationOptions({ items, values, onChange, mode, titleId }: Props) {
   const completed = items.filter(item => isPreparationAllocationComplete(item, values[item.id])).length
 
   function setAll(item: CartItem, method: PreparationMethod) {
@@ -42,9 +44,11 @@ export default function PreparationOptions({ items, values, onChange }: Props) {
   }
 
   return (
-    <section className="preparation-card" aria-labelledby="preparation-title">
-      <div className="preparation-stepper" aria-label="Progres pengiriman instant">
-        <span className="preparation-step preparation-step--complete"><Check size={13} /> Kurir instant</span>
+    <section className="preparation-card" aria-labelledby={titleId}>
+      <div className="preparation-stepper" aria-label={`Progres ${mode === 'pickup' ? 'ambil sendiri' : 'pengiriman instant'}`}>
+        <span className="preparation-step preparation-step--complete">
+          <Check size={13} /> {mode === 'pickup' ? 'Ambil sendiri' : 'Kurir instant'}
+        </span>
         <span className="preparation-stepper__line" aria-hidden="true" />
         <span className="preparation-step preparation-step--active">2 Pilih olahan</span>
       </div>
@@ -52,8 +56,12 @@ export default function PreparationOptions({ items, values, onChange }: Props) {
       <div className="preparation-heading">
         <div>
           <p className="preparation-eyebrow">GRATIS MASAK</p>
-          <h3 id="preparation-title">Mau disiapkan bagaimana?</h3>
-          <p>Pilih satu olahan untuk setiap produk sebelum lanjut.</p>
+          <h3 id={titleId}>Mau disiapkan bagaimana?</h3>
+          <p>
+            {mode === 'pickup'
+              ? 'Atur olahan setiap produk sebelum memilih jadwal ambil.'
+              : 'Pilih olahan setiap produk sebelum lanjut.'}
+          </p>
         </div>
         <span className="preparation-progress">{completed}/{items.length}</span>
       </div>

@@ -7,7 +7,7 @@ import {
 } from '@/lib/preparation'
 import { getPreparationMethods, type CartItem } from '@/stores/cart.store'
 import type { Branch } from '@/types'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AddressPayload } from './AddressForm'
 import PickupScheduler from './PickupScheduler'
 import PreparationOptions from './PreparationOptions'
@@ -29,6 +29,13 @@ export interface BranchShippingState {
   preparations: Record<string, PreparationAllocation>
 }
 
+export interface CheckoutValidationIssue {
+  branchId?: string
+  targetId: string
+  message: string
+  requestId: number
+}
+
 interface Props {
   branch: Branch
   items: CartItem[]
@@ -36,6 +43,7 @@ interface Props {
   state: BranchShippingState
   onChange: (state: BranchShippingState) => void
   index: number
+  validationIssue?: CheckoutValidationIssue | null
 }
 
 // ── Toggle kecil per branch ───────────────────────────────
@@ -55,8 +63,9 @@ function MiniToggle({ value, onChange, canPickup }: {
         return (
           <button
             key={opt.key}
+            type="button"
             disabled={disabled}
-            title={disabled ? 'Ambil sendiri tidak tersedia karena ada produk tanpa opsi Frozen.' : undefined}
+            title={disabled ? 'Ambil sendiri tidak tersedia: ada produk yang harus dimasak, tetapi cabang ini belum melayani masak.' : undefined}
             onClick={e => { e.stopPropagation(); if (!disabled) onChange(opt.key) }}
             style={{
               display:'flex', alignItems:'center', gap:5,
@@ -111,45 +120,82 @@ function BranchStatusSummary({ state }: {
 }
 
 // ── Main Card ─────────────────────────────────────────────
-export default function BranchShippingCard({ branch, items, address, state, onChange, index }: Props) {
+export default function BranchShippingCard({ branch, items, address, state, onChange, index, validationIssue }: Props) {
   const [expanded, setExpanded] = useState(true)
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0)
   const supportsCooking = branch.can_cook && !branch.sells_frozen_only
   const allSupportFrozen = items.every(item => getPreparationMethods(item).includes('frozen'))
-  const requiresPreparation = state.fulfillment === 'delivery'
-    && !!state.rate?.is_instant
-    && supportsCooking
+  const canPickup = supportsCooking || allSupportFrozen
+  const requiresPreparation = supportsCooking && (
+    state.fulfillment === 'pickup' || !!state.rate?.is_instant
+  )
   const preparationComplete = !requiresPreparation
     || items.every(item => isPreparationAllocationComplete(item, state.preparations?.[item.id]))
-  const isComplete = state.fulfillment === 'pickup'
-    ? !!state.pickup
-    : !!state.rate && preparationComplete
+  const fulfillmentComplete = state.fulfillment === 'pickup' ? !!state.pickup : !!state.rate
+  const isComplete = fulfillmentComplete && preparationComplete
   const operational = branch.operational_status
   const contentId = `branch-shipping-content-${branch.id}`
+  const branchTargetId = `checkout-branch-${branch.id}`
+  const shippingTargetId = `checkout-shipping-${branch.id}`
+  const preparationTargetId = `checkout-preparation-${branch.id}`
+  const pickupTargetId = `checkout-pickup-${branch.id}`
+  const validationBelongs = validationIssue?.branchId === branch.id
+  const validationTargetId = validationBelongs ? validationIssue.targetId : null
+  const displayedExpanded = expanded || validationBelongs
+
+  useEffect(() => {
+    if (!validationTargetId) return
+
+    let secondFrame = 0
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        const target = document.getElementById(validationTargetId)
+        if (!target) return
+        target.focus({ preventScroll:true })
+        target.scrollIntoView({ behavior:'smooth', block:'center' })
+      })
+    })
+
+    return () => {
+      cancelAnimationFrame(firstFrame)
+      if (secondFrame) cancelAnimationFrame(secondFrame)
+    }
+  }, [validationIssue?.requestId, validationTargetId])
+
+  function normalizedPreparations(): Record<string, PreparationAllocation> {
+    return items.reduce<Record<string, PreparationAllocation>>((result, item) => {
+      const allocation = normalizePreparationAllocation(item, state.preparations?.[item.id])
+      if (Object.keys(allocation).length > 0) result[item.id] = allocation
+      return result
+    }, {})
+  }
 
   function setFulfillment(f: BranchFulfillment) {
-    onChange({ ...state, fulfillment: f, rate: null, pickup: null, preparations: {} })
+    if (f === state.fulfillment) return
+    onChange({
+      ...state,
+      fulfillment: f,
+      rate: null,
+      pickup: null,
+      preparations: supportsCooking ? normalizedPreparations() : {},
+    })
     setExpanded(true)
   }
 
   function setRate(rate: Rate | null) {
     if (!rate?.is_instant) {
       onChange({ ...state, rate, preparations: {} })
+      setExpanded(true)
       return
     }
 
-    const preparations = { ...(state.preparations ?? {}) }
-    items.forEach(item => {
-      const allocation = normalizePreparationAllocation(item, preparations[item.id])
-      if (Object.keys(allocation).length > 0) preparations[item.id] = allocation
-      else delete preparations[item.id]
-    })
-
-    onChange({ ...state, rate, preparations })
+    onChange({ ...state, rate, preparations: normalizedPreparations() })
+    setExpanded(true)
   }
 
   function setPickup(datetime: string, note: string) {
     onChange({ ...state, pickup: { datetime, note } })
+    setExpanded(true)
   }
 
   function setPreparation(productId: string, allocation: PreparationAllocation) {
@@ -157,10 +203,38 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
       ...state,
       preparations: { ...(state.preparations ?? {}), [productId]: allocation },
     })
+    setExpanded(true)
   }
 
+  const validationMessage = (targetId: string) => validationTargetId === targetId ? (
+    <p className="checkout-validation-message" role="alert">{validationIssue?.message}</p>
+  ) : null
+
+  const preparationControl = requiresPreparation ? (
+    <div
+      id={preparationTargetId}
+      className="checkout-validation-target"
+      data-checkout-invalid={validationTargetId === preparationTargetId ? 'true' : undefined}
+      tabIndex={-1}
+    >
+      {validationMessage(preparationTargetId)}
+      <PreparationOptions
+        items={items}
+        values={state.preparations ?? {}}
+        onChange={setPreparation}
+        mode={state.fulfillment === 'pickup' ? 'pickup' : 'instant'}
+        titleId={`preparation-title-${branch.id}`}
+      />
+    </div>
+  ) : null
+
   return (
-    <div className="branch-shipping-card" style={{
+    <div
+      id={branchTargetId}
+      className="branch-shipping-card checkout-validation-target"
+      data-checkout-invalid={validationTargetId === branchTargetId ? 'true' : undefined}
+      tabIndex={-1}
+      style={{
       border:`1.5px solid ${isComplete ? 'rgba(16,185,129,0.3)' : S.creamDp}`,
       borderRadius:16,
       overflow:'hidden',
@@ -168,7 +242,7 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
       transition:'border-color 0.2s',
     }}>
 
-      {/* ── Header — klik untuk collapse/expand ── */}
+      {/* ── Header ── */}
       <div
         className="branch-shipping-header"
         style={{
@@ -176,7 +250,7 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
           padding:'14px 16px',
           background: isComplete ? 'rgba(16,185,129,0.04)' : '#fafafa',
           userSelect:'none',
-          borderBottom: expanded ? `1px solid ${S.creamDp}` : 'none',
+          borderBottom: displayedExpanded ? `1px solid ${S.creamDp}` : 'none',
         }}>
 
         {/* Left: nomor + nama branch */}
@@ -197,7 +271,7 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
             <p style={{ fontSize:11, color:S.gray }}>
               {items.length} item · {formatRupiah(subtotal)}
             </p>
-            {!expanded && isComplete && (
+            {!displayedExpanded && isComplete && (
               <BranchStatusSummary state={state} />
             )}
           </div>
@@ -205,17 +279,17 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
 
         {/* Right: toggle + chevron */}
         <div className="branch-shipping-controls" style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <MiniToggle value={state.fulfillment} onChange={setFulfillment} canPickup={allSupportFrozen} />
+          <MiniToggle value={state.fulfillment} onChange={setFulfillment} canPickup={canPickup} />
           <button
             type="button"
             className="branch-shipping-collapse"
-            aria-expanded={expanded}
+            aria-expanded={displayedExpanded}
             aria-controls={contentId}
-            aria-label={expanded ? `Tutup pilihan pengiriman ${branch.name}` : `Buka pilihan pengiriman ${branch.name}`}
+            aria-label={displayedExpanded ? `Tutup pilihan pengiriman ${branch.name}` : `Buka pilihan pengiriman ${branch.name}`}
             onClick={() => setExpanded(value => !value)}
           >
             <span aria-hidden="true" style={{
-              transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+              transform: displayedExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
               transition:'transform 0.2s', display:'inline-block',
             }}>▾</span>
           </button>
@@ -223,8 +297,10 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
       </div>
 
       {/* ── Content ── */}
-      {expanded && (
+      {displayedExpanded && (
         <div id={contentId} className="branch-shipping-content" style={{ padding:'16px 16px' }}>
+
+          {validationMessage(branchTargetId)}
 
           {operational && operational.code !== 'open' && (
             <div style={{ padding:'10px 12px', borderRadius:9, marginBottom:14, background:operational.accepting_orders?'rgba(232,160,32,.08)':'rgba(196,30,58,.07)', border:`1px solid ${operational.accepting_orders?'rgba(232,160,32,.25)':'rgba(196,30,58,.2)'}`, color:operational.accepting_orders?'#92600A':S.red, fontSize:11, lineHeight:1.5 }}>
@@ -259,20 +335,22 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
                 </div>
               )}
 
-              <ShippingOptions
-                address={address}
-                branchId={branch.id}
-                items={items}
-                onSelect={setRate}
-              />
-
-              {requiresPreparation && (
-                <PreparationOptions
+              <div
+                id={shippingTargetId}
+                className="checkout-validation-target"
+                data-checkout-invalid={validationTargetId === shippingTargetId ? 'true' : undefined}
+                tabIndex={-1}
+              >
+                {validationMessage(shippingTargetId)}
+                <ShippingOptions
+                  address={address}
+                  branchId={branch.id}
                   items={items}
-                  values={state.preparations ?? {}}
-                  onChange={setPreparation}
+                  onSelect={setRate}
                 />
-              )}
+              </div>
+
+              {preparationControl}
 
               {state.rate?.is_instant && !supportsCooking && (
                 <div className="preparation-frozen-notice">
@@ -291,26 +369,49 @@ export default function BranchShippingCard({ branch, items, address, state, onCh
               }}>
                 ✓ Gratis biaya pengiriman untuk pickup
               </div>
-              <PickupScheduler
-                branch={branch}
-                onSelect={setPickup}
-              />
+
+              {preparationControl}
+
+              {!supportsCooking && (
+                <div className="preparation-frozen-notice">
+                  <span>❄️</span>
+                  <span><strong>Diambil frozen.</strong> Cabang ini belum melayani pilihan masak.</span>
+                </div>
+              )}
+
+              <div
+                id={pickupTargetId}
+                className="checkout-validation-target"
+                data-checkout-invalid={validationTargetId === pickupTargetId ? 'true' : undefined}
+                tabIndex={-1}
+              >
+                {validationMessage(pickupTargetId)}
+                <PickupScheduler
+                  branch={branch}
+                  onSelect={setPickup}
+                />
+              </div>
             </>
           )}
 
           {/* Summary bawah card */}
-          {(isComplete || (state.rate && requiresPreparation)) && (
+          {(isComplete || requiresPreparation) && (
             <div className="branch-shipping-summary" style={{
               marginTop:12, paddingTop:12,
               borderTop:`1px dashed ${S.creamDp}`,
               display:'flex', justifyContent:'space-between',
               alignItems:'center',
             }}>
-              {isComplete
-                ? <BranchStatusSummary state={state} />
-                : <span style={{ fontSize:11, color:S.gold }}>⏳ Lengkapi pilihan olahan</span>}
+              {isComplete ? (
+                <BranchStatusSummary state={state} />
+              ) : (
+                <span style={{ fontSize:11, color:S.gold }}>
+                  {preparationComplete ? '⏳ Pilih jadwal pengambilan' : '⏳ Lengkapi pilihan olahan'}
+                </span>
+              )}
               {isComplete && (
                 <button
+                  type="button"
                   onClick={() => setExpanded(false)}
                   style={{ fontSize:11, color:S.navy, background:'none', border:'none', cursor:'pointer', fontWeight:600 }}>
                   Selesai ✓

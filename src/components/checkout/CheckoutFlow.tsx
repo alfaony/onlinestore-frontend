@@ -24,7 +24,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import AddressForm, { type AddressPayload } from './AddressForm'
 import AffiliateCodeInput from './AffiliateCodeInput'
-import BranchShippingCard, { type BranchShippingState } from './BranchShippingCard'
+import BranchShippingCard, {
+  type BranchShippingState,
+  type CheckoutValidationIssue,
+} from './BranchShippingCard'
 import OTPModal from './OTPModal'
 import VoucherInput from './VoucherInput'
 
@@ -39,6 +42,7 @@ const S = {
 
 interface ApiErrorData { message?: string; errors?: Record<string, string[]> }
 interface StockIssue { message: string; branchIndex?: number; itemIndex?: number }
+type ReceptionIssue = Omit<CheckoutValidationIssue, 'requestId'>
 
 function apiErrorMessage(error: unknown, fallback: string) {
   if (!axios.isAxiosError<ApiErrorData>(error)) return fallback
@@ -412,6 +416,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
   const [address,      setAddress]      = useState<AddressPayload | null>(null)
   const [branches,     setBranches]     = useState<Branch[]>([])
   const [branchStates, setBranchStates] = useState<Record<string, BranchShippingState>>({})
+  const [receptionValidation, setReceptionValidation] = useState<CheckoutValidationIssue | null>(null)
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -445,24 +450,119 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
   // ── Computed ─────────────────────────────────────────────
   const needsAddress = Object.values(branchStates).some(s => s.fulfillment === 'delivery')
 
-  const allBranchReady = grouped.length > 0 && grouped.every(g => {
-    const s = branchStates[g.branchId]
-    const branch = branches.find(candidate => candidate.id === g.branchId)
-    if (branch?.operational_status && !branch.operational_status.accepting_orders) return false
-    if (!s) return false
-    if (s.fulfillment === 'pickup') {
-      return !!s.pickup && g.items.every(item => getPreparationMethods(item).includes('frozen'))
+  const branchReceptionIssues = useMemo<ReceptionIssue[]>(() => {
+    const issues: ReceptionIssue[] = []
+
+    grouped.forEach(group => {
+      const state = branchStates[group.branchId]
+      const branch = branches.find(candidate => candidate.id === group.branchId)
+
+      if (!branch) {
+        issues.push({
+          targetId:'checkout-reception-step',
+          message:`Data ${group.branchName} sedang dimuat. Coba lagi sebentar.`,
+        })
+        return
+      }
+
+      const branchTargetId = `checkout-branch-${group.branchId}`
+      if (branch.operational_status && !branch.operational_status.accepting_orders) {
+        issues.push({
+          branchId:group.branchId,
+          targetId:branchTargetId,
+          message:branch.operational_status.message || `${branch.name} sedang tidak menerima pesanan.`,
+        })
+        return
+      }
+
+      if (!state) {
+        issues.push({
+          branchId:group.branchId,
+          targetId:branchTargetId,
+          message:`Pilih metode penerimaan untuk ${branch.name}.`,
+        })
+        return
+      }
+
+      const supportsCooking = !!branch.can_cook && !branch.sells_frozen_only
+      if (state.fulfillment === 'pickup') {
+        const allSupportFrozen = group.items.every(item => getPreparationMethods(item).includes('frozen'))
+        if (!supportsCooking && !allSupportFrozen) {
+          issues.push({
+            branchId:group.branchId,
+            targetId:branchTargetId,
+            message:`Ambil sendiri belum tersedia untuk seluruh produk di ${branch.name}.`,
+          })
+          return
+        }
+
+        if (supportsCooking) {
+          const incompleteItem = group.items.find(item =>
+            !isPreparationAllocationComplete(item, state.preparations?.[item.id])
+          )
+          if (incompleteItem) {
+            issues.push({
+              branchId:group.branchId,
+              targetId:`checkout-preparation-${group.branchId}`,
+              message:`Lengkapi pilihan olahan ${incompleteItem.name} di ${branch.name}.`,
+            })
+          }
+        }
+
+        if (!state.pickup) {
+          issues.push({
+            branchId:group.branchId,
+            targetId:`checkout-pickup-${group.branchId}`,
+            message:`Pilih tanggal dan jam pengambilan di ${branch.name}.`,
+          })
+        }
+        return
+      }
+
+      if (!state.rate) {
+        issues.push({
+          branchId:group.branchId,
+          targetId:`checkout-shipping-${group.branchId}`,
+          message:`Pilih kurir pengiriman dari ${branch.name}.`,
+        })
+        return
+      }
+
+      if (state.rate.is_instant && supportsCooking) {
+        const incompleteItem = group.items.find(item =>
+          !isPreparationAllocationComplete(item, state.preparations?.[item.id])
+        )
+        if (incompleteItem) {
+          issues.push({
+            branchId:group.branchId,
+            targetId:`checkout-preparation-${group.branchId}`,
+            message:`Lengkapi pilihan olahan ${incompleteItem.name} di ${branch.name}.`,
+          })
+        }
+      }
+    })
+
+    return issues
+  }, [branchStates, branches, grouped])
+
+  const receptionIssues = useMemo<ReceptionIssue[]>(() => {
+    if (grouped.length === 0) {
+      return [{ targetId:'checkout-reception-step', message:'Keranjang masih kosong.' }]
     }
-    if (!s.rate) return false
 
-    const requiresPreparation = s.rate.is_instant
-      && !!branch?.can_cook
-      && !branch.sells_frozen_only
+    const addressIssues: ReceptionIssue[] = needsAddress && (!address || !address.postal_code)
+      ? [{
+          targetId:'checkout-address',
+          message:address
+            ? 'Lengkapi kode pos pada alamat pengiriman.'
+            : 'Pilih atau lengkapi alamat pengiriman.',
+        }]
+      : []
 
-    return !requiresPreparation || g.items.every(item =>
-      isPreparationAllocationComplete(item, s.preparations?.[item.id])
-    )
-  })
+    return [...addressIssues, ...branchReceptionIssues]
+  }, [address, branchReceptionIssues, grouped.length, needsAddress])
+
+  const allBranchReady = grouped.length > 0 && branchReceptionIssues.length === 0
 
   const calculatedTotal = grouped.reduce((sum, g) => {
     const s = branchStates[g.branchId]
@@ -658,14 +758,47 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
     setStep(2)
   }
 
+  function revealReceptionIssue(issue: ReceptionIssue) {
+    setStep(2)
+    setReceptionValidation(previous => ({
+      ...issue,
+      requestId:(previous?.requestId ?? 0) + 1,
+    }))
+    toast.error(issue.message)
+
+    if (issue.branchId) return
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const target = document.getElementById(issue.targetId)
+        if (!target) return
+        target.focus({ preventScroll:true })
+        target.scrollIntoView({ behavior:'smooth', block:'center' })
+      })
+    })
+  }
+
+  function handleReceptionContinue() {
+    const issue = receptionIssues[0]
+    if (issue) {
+      revealReceptionIssue(issue)
+      return
+    }
+
+    setReceptionValidation(null)
+    setStep(3)
+  }
+
   async function placeOrder() {
     if (!isWhatsAppVerified) {
       toast.error('Sesi verifikasi WhatsApp tidak valid. Verifikasi ulang untuk membayar.')
       setStep(1)
       return
     }
-    if (needsAddress && !address) { toast.error('Pilih alamat pengiriman'); return }
-    if (!allBranchReady) { toast.error('Lengkapi metode pengiriman semua cabang'); return }
+    const receptionIssue = receptionIssues[0]
+    if (receptionIssue) {
+      revealReceptionIssue(receptionIssue)
+      return
+    }
     setLoading(true)
     setStockIssues(null)
     try {
@@ -683,6 +816,10 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
         branches: grouped.map(g => {
           const s = branchStates[g.branchId]
           const isPickup = s?.fulfillment === 'pickup'
+          const branch = branches.find(candidate => candidate.id === g.branchId)
+          const supportsPreparation = !!branch?.can_cook
+            && !branch.sells_frozen_only
+            && (isPickup || !!s?.rate?.is_instant)
           return {
             branch_id: g.branchId,
             fulfillment_type: s?.fulfillment ?? 'delivery',
@@ -695,7 +832,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
               preparation_method: PreparationMethod | null
             }>(i => {
               const allocation = s?.preparations?.[i.id]
-              if (!isPickup && s?.rate?.is_instant && allocation) {
+              if (supportsPreparation && allocation) {
                 return PREPARATION_METHODS.flatMap(method => {
                   const quantity = allocation[method] ?? 0
                   return quantity > 0 ? [{
@@ -710,7 +847,7 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
               return [{ product_id:i.id, quantity:i.qty, price:i.price, preparation_method:null }]
             }),
             shipping: isPickup
-              ? { courier:'pickup', service:'self', cost:0, insurance_fee:0, is_instant:false, free_cooking:false }
+              ? { courier:'pickup', service:'self', cost:0, insurance_fee:0, is_instant:false, free_cooking:supportsPreparation }
               : { courier:s?.rate?.courier??'', service:s?.rate?.service??'', cost:s?.rate?.price??0,
                   insurance_fee:s?.rate?.insurance_fee??0, is_instant:s?.rate?.is_instant??false, free_cooking:s?.rate?.free_cooking??false },
           }
@@ -855,14 +992,39 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
 
           {/* Step 2 */}
           {step === 2 && (
-            <div className="checkout-card" style={{ background:'#fff', borderRadius:16, padding:26, border:`1px solid ${S.creamDp}` }}>
+            <div
+              id="checkout-reception-step"
+              className="checkout-card checkout-validation-target"
+              data-checkout-invalid={receptionValidation?.targetId === 'checkout-reception-step' ? 'true' : undefined}
+              tabIndex={-1}
+              style={{ background:'#fff', borderRadius:16, padding:26, border:`1px solid ${S.creamDp}` }}
+            >
               <h2 style={{ fontFamily:"var(--font-display), Georgia, serif", fontSize:26, color:S.navy, marginBottom:6 }}>Pengiriman</h2>
               <p style={{ fontSize:12, color:S.gray, marginBottom:20 }}>Pilih metode pengiriman untuk setiap cabang</p>
 
+              {receptionValidation?.targetId === 'checkout-reception-step' && (
+                <p className="checkout-validation-message" role="alert">{receptionValidation.message}</p>
+              )}
+
               {needsAddress && (
-                <div style={{ marginBottom:20 }}>
+                <div
+                  id="checkout-address"
+                  className="checkout-validation-target"
+                  data-checkout-invalid={receptionValidation?.targetId === 'checkout-address' ? 'true' : undefined}
+                  tabIndex={-1}
+                  style={{ marginBottom:20 }}
+                >
+                  {receptionValidation?.targetId === 'checkout-address' && (
+                    <p className="checkout-validation-message" role="alert">{receptionValidation.message}</p>
+                  )}
                   <p style={{ fontSize:12, fontWeight:600, color:S.dark, marginBottom:10 }}>📍 Alamat Pengiriman</p>
-                  <AddressForm onSelect={setAddress} member={member} />
+                  <AddressForm
+                    onSelect={selectedAddress => {
+                      setAddress(selectedAddress)
+                      setReceptionValidation(null)
+                    }}
+                    member={member}
+                  />
                 </div>
               )}
 
@@ -877,13 +1039,26 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
                     items={g.items}
                     address={state.fulfillment === 'delivery' ? address : null}
                     state={state}
-                    onChange={newState => setBranchStates(prev => ({ ...prev, [g.branchId]: newState }))}
+                    onChange={newState => {
+                      setBranchStates(prev => ({ ...prev, [g.branchId]: newState }))
+                      setReceptionValidation(null)
+                    }}
                     index={i}
+                    validationIssue={receptionValidation}
                   />
                 )
               })}
 
-              <button onClick={() => setStep(3)} disabled={!allBranchReady || (needsAddress && !address)}
+              {receptionIssues.length > 0 && (
+                <p className="checkout-reception-hint" role="status">
+                  {receptionIssues.length} pilihan perlu dilengkapi. Tombol akan mengarahkan ke bagian pertama.
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleReceptionContinue}
+                aria-describedby={receptionValidation ? 'checkout-reception-validation-live' : undefined}
                 className="c-btn c-btn-primary c-btn-lg c-btn-full checkout-card-primary" style={{ marginTop:8 }}>
                 Lanjut ke Pembayaran →
               </button>
@@ -1008,9 +1183,19 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
       <Sidebar grouped={grouped} branchStates={branchStates} preview={activePromoPreview} />
       </div>
 
+      <p id="checkout-reception-validation-live" className="sr-only" aria-live="assertive">
+        {receptionValidation?.message ?? ''}
+      </p>
+
       <div className="checkout-mobile-bar" aria-label="Aksi checkout">
         <div className="checkout-mobile-bar__total">
-          <span>{step === 3 ? 'Total bayar' : 'Estimasi total'}</span>
+          <span>
+            {step === 3
+              ? 'Total bayar'
+              : step === 2 && receptionIssues.length > 0
+                ? `${receptionIssues.length} perlu dilengkapi`
+                : 'Estimasi total'}
+          </span>
           <strong>{formatRupiah(grandTotal)}</strong>
         </div>
         {step === 1 && (
@@ -1026,8 +1211,8 @@ export default function CheckoutFlow({ onPaymentSuccess }: Props) {
         {step === 2 && (
           <button
             type="button"
-            onClick={() => setStep(3)}
-            disabled={!allBranchReady || (needsAddress && !address)}
+            onClick={handleReceptionContinue}
+            aria-describedby={receptionValidation ? 'checkout-reception-validation-live' : undefined}
             className="c-btn c-btn-primary c-btn-md"
           >
             Pembayaran
